@@ -52,8 +52,9 @@ class GlobalFunctions{
     }
 
     public function getUrl($string){
-        $string = trim(preg_replace("~[^a-zA-Z0-9]~", " ", $string));
-        $string = strtolower(preg_replace("~[\s]+~", "-", $string));
+        $string = trim(preg_replace('~\P{Xan}++~u', ' ', $string));
+        $string = preg_replace("~\s+~", '-', strtolower($string));
+        $string = substr($string, 0, 200);
         return $string;
     }
 
@@ -63,11 +64,11 @@ class GlobalFunctions{
         $url = substr($url, 0, 200);
         $and = '';
         if($id && is_numeric($id)){
-            $and = " AND `id` != '$id'";
+            $and = " `id` != '$id' AND ";
         }
 
         $count = 0;
-        while($Core->db->result("SELECT `id` FROM `{$Core->dbName}`.`$table` WHERE `$field` = '$url' $and")){
+        while($Core->db->result("SELECT `id` FROM `{$Core->dbName}`.`$table` WHERE $and `$field` = '$url'")){
             $count++;
             $postFix = substr($url, strripos($url, '-'));
             if($count > 1){
@@ -192,7 +193,7 @@ class GlobalFunctions{
     }
 
     //pagination function
-    function drawPagination($resultsCount, $url, $currentPage, $firstLast = false, array $html){
+    public function drawPagination($resultsCount, $url, $currentPage, $firstLast = false, array $html, $firstPage = false){
         global $Core;
 
         if($resultsCount <= $Core->itemsPerPage){
@@ -218,9 +219,9 @@ class GlobalFunctions{
         echo '<ul'.(isset($html['ul_class']) ? ' class="'.$html['ul_class'].'"' : '').'>';
         if($currentPage>1){
             if($firstLast){
-                echo('<li'.(isset($html['first'], $html['first']['class']) ? ' class="'.$html['first']['class'].'"' : '').'><a title="Page 1" href="'.$url.'1">'.(isset($html['first'], $html['first']['html']) ? $html['first']['html'] : $pagesCount).'</a></li>');
+                echo('<li'.(isset($html['first'], $html['first']['class']) ? ' class="'.$html['first']['class'].'"' : '').'><a title="Page 1" href="'.(!$firstPage && $url != '/' && substr($url, -1, 1) == '/' ? substr($url, 0, -1) : $url).($firstPage ? '1' : '').'">'.(isset($html['first'], $html['first']['html']) ? $html['first']['html'] : $pagesCount).'</a></li>');
             }
-            echo('<li'.(isset($html['prev'], $html['prev']['class']) ? ' class="'.$html['prev']['class'].'"' : '').'><a href="'.$url.($current-1).'" title="Page '.($current-1).'">'.(isset($html['prev'], $html['prev']['html']) ? $html['prev']['html'] : $current-1).'</a></li>');
+            echo('<li'.(isset($html['prev'], $html['prev']['class']) ? ' class="'.$html['prev']['class'].'"' : '').'><a href="'.($current-1 == 1 && !$firstPage && $url != '/' && substr($url, -1, 1) == '/' ? substr($url, 0, -1) : $url).($current-1 == 1 ? ($firstPage ? $current-1 : '') : $current-1).'" title="Page '.($current-1).'">'.(isset($html['prev'], $html['prev']['html']) ? $html['prev']['html'] : $current-1).'</a></li>');
         }
 
         if($Core->numberOfPagesInPagination%2 == 0)
@@ -235,7 +236,7 @@ class GlobalFunctions{
                 if($s<=$pagesCount){
                     echo (
                         '<li'.((isset($html['default'], $html['default']['class']) || $currentPage == $s) ? ' class="'.(isset($html['default'], $html['default']['class']) ? $html['default']['class'].' ' : '').($currentPage == $s ? (isset($html['current_page_class']) ? ' '.$html['current_page_class'] : '') : '').'"' : '').'>
-                            <a title="Page '.$s.'" href="'.$url.$s.'">'.(isset($html['default'], $html['default']['html']) ? $html['default']['html'].$s : $s).'</a>
+                            <a title="Page '.$s.'" href="'.($s == 1 && !$firstPage && $url != '/' && substr($url, -1, 1) == '/' ? substr($url, 0, -1) : $url).($s == 1 ? ($firstPage ? $s : '') : $s).'">'.(isset($html['default'], $html['default']['html']) ? $html['default']['html'].$s : $s).'</a>
                         </li>');
                 }
                 $more++;
@@ -249,7 +250,7 @@ class GlobalFunctions{
                 if($s<=$pagesCount){
                     echo(
                         '<li'.((isset($html['default'], $html['default']['class']) || $current == $s) ? ' class="'.(isset($html['default'], $html['default']['class']) ? $html['default']['class'].' ' : '').($current == $s ? (isset($html['current_page_class']) ? ' '.$html['current_page_class'] : '') : '').'"' : '').'>
-                        <a title="Page '.$s.'" href="'.$url.$s.'">'.(isset($html['default'], $html['default']['html']) ? $html['default']['html'].$s : $s).'</a>
+                        <a title="Page '.$s.'" href="'.($s == 1 && !$firstPage && $url != '/' && substr($url, -1, 1) == '/' ? substr($url, 0, -1) : $url).($s == 1 ? ($firstPage ? $s : '') : $s).'">'.(isset($html['default'], $html['default']['html']) ? $html['default']['html'].$s : $s).'</a>
                         </li>');
                 }
             }
@@ -258,7 +259,7 @@ class GlobalFunctions{
                 if($s<=$pagesCount){
                     echo(
                         '<li'.((isset($html['default'], $html['default']['class']) || $currentPage == $s) ? ' class="'.(isset($html['default'], $html['default']['class']) ? $html['default']['class'].' ' : '').($currentPage == $s ? (isset($html['current_page_class']) ? ' '.$html['current_page_class'] : '') : '').'"' : '').'>
-                        <a title="Page '.$s.'" href="'.$url.$s.'">'.(isset($html['default'], $html['default']['html']) ? $html['default']['html'].$s : $s).'</a>
+                        <a title="Page '.$s.'" href="'.($s == 1 && !$firstPage && $url != '/' && substr($url, -1, 1) == '/' ? substr($url, 0, -1) : $url).($s == 1 ? ($firstPage ? $s : '') : $s).'">'.(isset($html['default'], $html['default']['html']) ? $html['default']['html'].$s : $s).'</a>
                         </li>');
                 }
             }
@@ -492,20 +493,27 @@ class GlobalFunctions{
         }
     }
 
-    public function getFolder($dir){
+    public function getFolder($dir, $onlyCurrent = false){
         global $Core;
 
-        $mainFoldersCount = count(glob($dir.'*',GLOB_ONLYDIR));
+        $mainFoldersCount = count(glob($dir.'*', GLOB_ONLYDIR));
         if($mainFoldersCount == 0){
-            $currentFolder = $dir.'1/';
-        }elseif(count(glob($dir.$mainFoldersCount.'/*',GLOB_ONLYDIR)) >= $Core->folderLimit){
-            $currentFolder = $dir.($mainFoldersCount+1).'/';
+            $current = 1;
+            $folder  = $dir.$current.'/';
+        }elseif(count(glob($dir.$mainFoldersCount.'/*')) >= $Core->folderLimit){
+            $current = $mainFoldersCount+1;
+            $folder  = $dir.$current.'/';
         }else{
-            $currentFolder = $dir.$mainFoldersCount.'/';
+            $current = $mainFoldersCount;
+            $folder  = $dir.$current.'/';
         }
-        return $currentFolder;
+
+        if($onlyCurrent){
+            return $current;
+        }
+        return $folder;
     }
-    
+
     //validate an URL ($url) against a test string ($stringToCheck)
     public function validateSpecificLink($url, $pattern) {
         global $Core;

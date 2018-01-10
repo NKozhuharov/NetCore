@@ -2,25 +2,23 @@
 class Images{
     public $allowedSizes = array(
         'org' => array(
-            'org'   => array('width' => false,   'height' => false),
+            'org'   => array('width' => false, 'height' => false),
         ),
         'width'  => array(
-            '200'  => array('width' => 384,  'height' => false),
-            '300'  => array('width' => 768,  'height' => false),
-            '300'  => array('width' => 1152, 'height' => false),
-            '500'  => array('width' => 1536, 'height' => false),
             '1920' => array('width' => 1920, 'height' => false)
         ),
         'height'=> array(
+            '1080' => array('width' => false, 'height' => 1080)
         ),
         'fixed' => array(
+            '1920-1080' => array('width' => 1920, 'height' => 1080)
         ),
         false => array(
             false => array('width' => false, 'height' => false)
         )
     );
 
-    public $sizeLimit     = 10485760;//10MB
+    public $sizeLimit     = 10485760; //10MB
     public $sizeLimitText = '10MB';
     public $uploadName    = 'imageUpload';
     public $extension     = '.jpg';
@@ -39,42 +37,41 @@ class Images{
     public $key           = false;
     public $imagick       = false;
     public $hasWatermark  = 0;
-    public $watermark     = '/var/www/admin/www/img/watermark.png';
+    public $watermark     = false; //'/var/www/site/www/img/watermark.png';
 
     public function __construct(){
-       if((isset($_FILES[$this->uploadName], $_FILES[$this->uploadName]['tmp_name']) && is_array($_FILES[$this->uploadName]['tmp_name'])) || substr($_SERVER['REQUEST_URI'], 0, 7) == '/images'){
-            if(isset($_FILES[$this->uploadName], $_FILES[$this->uploadName]['tmp_name']) && is_array($_FILES[$this->uploadName]['tmp_name'])){
-                $count = count($_FILES[$this->uploadName]['tmp_name']);
+       if(isset($_FILES[$this->uploadName], $_FILES[$this->uploadName]['tmp_name']) && is_array($_FILES[$this->uploadName]['tmp_name'])){
+            $count = count($_FILES[$this->uploadName]['tmp_name']);
 
-                for($i=0; $i < $count; $i++){
-                    $this->files[$i]['name']     = $_FILES[$this->uploadName]['name'][$i];
-                    $this->files[$i]['type']     = $_FILES[$this->uploadName]['type'][$i];
-                    $this->files[$i]['tmp_name'] = $_FILES[$this->uploadName]['tmp_name'][$i];
-                    $this->files[$i]['error']    = $_FILES[$this->uploadName]['error'][$i];
-                    $this->files[$i]['size']     = $_FILES[$this->uploadName]['size'][$i];
-                }
+            for($i=0; $i < $count; $i++){
+                $this->files[$i]['name']     = $_FILES[$this->uploadName]['name'][$i];
+                $this->files[$i]['type']     = $_FILES[$this->uploadName]['type'][$i];
+                $this->files[$i]['size']     = $_FILES[$this->uploadName]['size'][$i];
+                $this->files[$i]['error']    = $_FILES[$this->uploadName]['error'][$i];
+                $this->files[$i]['tmp_name'] = $_FILES[$this->uploadName]['tmp_name'][$i];
+            }
 
-                foreach($this->files as $f){
-                    $this->currentFile = $f;
-                    $this->checks();
-                    $this->setImagick($this->file);
-                    $this->convert();
-                    $this->orgMd5 = md5($this->imagick->__toString());
-                    $this->processOriginal();
-                    $this->processResized();
-                }
-                if(count($this->response) == 1){
-                    echo $this->response[0];
-                }else{
-                    echo json_encode($this->response);
-                }
-                die;
-            }else{
+            foreach($this->files as $f){
+                $this->currentFile = $f;
                 $this->checks();
                 $this->setImagick($this->file);
-                $this->orgMd5 = md5_file($this->file);
+                $this->convert();
+                $this->orgMd5 = md5($this->imagick->__toString());
+                $this->processOriginal();
                 $this->processResized();
             }
+
+            if(count($this->response) == 1){
+                echo $this->response[0];
+            }else{
+                echo json_encode($this->response);
+            }
+            die;
+       }elseif(substr($_SERVER['REQUEST_URI'], 0, 7) == '/images'){
+            $this->checks();
+            $this->setImagick($this->file);
+            $this->orgMd5 = md5_file($this->file);
+            $this->processResized();
         }
     }
 
@@ -88,11 +85,11 @@ class Images{
                 throw new Exception($Core->language->error_image_is_empty);
             }elseif(!stristr(mime_content_type($this->currentFile['tmp_name']), 'image')){
                 throw new Exception($Core->language->error_file_is_not_valid_image_file);
-            }elseif(filesize($this->currentFile['tmp_name']) > $this->sizeLimit){
+            }elseif($this->sizeLimit && filesize($this->currentFile['tmp_name']) > $this->sizeLimit){
                 throw new Exception($Core->language->error_image_must_not_be_bigger_than_.$this->sizeLimitText);
             }
 
-            $this->folderNumber = $this->getDestinationFolder($Core->imagesStorage);
+            $this->folderNumber = $Core->globalfunctions->getFolder($Core->imagesStorage, true);
             $this->name         = substr($this->currentFile['name'], 0, strripos($this->currentFile['name'], '.'));
             $this->file         = urldecode($this->currentFile['tmp_name']);
 
@@ -115,23 +112,39 @@ class Images{
             }
             //image upload
             $this->upload = true;
-        }elseif(preg_match("~^/images/([a-zA-Z-]+)/([\d]+)/([\d]+)/(.*)~",$_SERVER['REQUEST_URI'] ,$m)){
+        }elseif(preg_match("~^/images/(width|height)/([\d]+)/([\d]+)/(.*)~",$_SERVER['REQUEST_URI'] ,$m)){
             $this->type          = $m[1];
             $this->key           = $m[2];
             $this->name          = urldecode(substr($m[4], 0, strripos($m[4], '.')));
             $this->currentFolder = $m[1].'/'.$m[2].'/'.$m[3].'/';
             $this->file          = urldecode($Core->imagesStorage.$m[3].'/'.$m[4]);
 
+            if(!$this->allowedSizes){
+                if($m[1] == 'width'){
+                    $this->width  = $m[2];
+                }elseif($m[1] == 'height'){
+                    $this->height = $m[2];
+                }
+            }
+
             if(!is_file($this->file)){
                 //unexisting file
                 $Core->doOrDie();
             }
-        }elseif(preg_match("~^/images/([a-zA-Z-]+)/([\d]+-[\d]+)/([\d]+)/(.*)~",$_SERVER['REQUEST_URI'] ,$m)){
+        }elseif(preg_match("~^/images/(fixed)/([\d]+-[\d]+)/([\d]+)/(.*)~",$_SERVER['REQUEST_URI'] ,$m)){
             $this->type          = $m[1];
             $this->key           = $m[2];
             $this->name          = urldecode(substr($m[4], 0, strripos($m[4], '.')));
             $this->currentFolder = $m[1].'/'.$m[2].'/'.$m[3].'/';
             $this->file          = urldecode($Core->imagesStorage.$m[3].'/'.$m[4]);
+
+            if(!$this->allowedSizes){
+                $rato = explode('-', $m[2]);
+                if(count($rato == 2)){
+                    $this->width  = $rato[0];
+                    $this->height = $rato[1];
+                }
+            }
 
             if(!is_file($this->file)){
                 //unexisting file
@@ -153,11 +166,11 @@ class Images{
             $Core->doOrDie();
         }
 
-        if(!isset($this->allowedSizes[$this->type])){
+        if($this->allowedSizes && !isset($this->allowedSizes[$this->type])){
             throw new Exception($Core->language->error_unallowed_action);
-        }elseif(!isset($this->allowedSizes[$this->type][$this->key])){
+        }elseif($this->allowedSizes && !isset($this->allowedSizes[$this->type][$this->key])){
             throw new Exception($Core->language->unallowed_image_size.' '.$this->type);
-        }else{
+        }elseif($this->allowedSizes){
             $this->width  = $this->allowedSizes[$this->type][$this->key]['width'];
             $this->height = $this->allowedSizes[$this->type][$this->key]['height'];
         }
@@ -235,6 +248,7 @@ class Images{
         $destination = $Core->db->escape($destination);
 
         $Core->db->query("INSERT INTO `{$Core->dbName}`.`images`(`name`, `hash`, `src`, `org`, `watermark`) VALUES('{$name}', '{$md5}', '{$destination}', '{$isOrg}', '{$watermark}')");
+        return $destination;
     }
 
     public function addWatermark(){
@@ -281,41 +295,17 @@ class Images{
         }
     }
 
-    public function getDestinationFolder($folder){
+    public function getName($name = false){
         global $Core;
 
-        $imagesDir = $Core->imagesDir.$folder;
-        $mainFoldersCount = count(glob($imagesDir.'*'));
-        if($mainFoldersCount == 0){
-            $folder = '1';
-        }elseif(count(glob($imagesDir.$mainFoldersCount.'/*')) >= $Core->folderLimit){
-            $folder = ($mainFoldersCount+1);
-        }else{
-            $folder = $mainFoldersCount;
+        if($name){
+            $this->name = $name;
         }
 
-        return $folder;
-    }
+        $name = $Core->globalfunctions->getUrl($this->name);
+        $name = $Core->globalfunctions->getHref($name, 'images', 'name');
 
-    public function getName(){
-        global $Core;
-        $name = trim(preg_replace('~\P{Xan}++~u', ' ', $this->name));
-        $name = preg_replace("~\s+~", '-', strtolower($name));
-        $name = substr($name, 0, 200);
-
-        $count = 0;
-        while($Core->db->result("SELECT `id` FROM `{$Core->dbName}`.`images` WHERE `name` = '$name' AND `org` = 1")){
-            $count++;
-            $postFix = substr($name, strripos($name, '-'));
-            if($count > 1){
-                $postFix = str_replace('-'.($count-1),'-'.$count, $postFix);
-                $name = substr($name, 0, strripos($name, '-')).$postFix;
-            }else{
-                $name .= '-'.$count;
-            }
-        }
         $this->name = $name;
-
         return $name;
     }
 
@@ -323,14 +313,14 @@ class Images{
         $this->imagick = new Imagick($file);
     }
 
-    public function convert(){
-        if(strtolower($this->imagick->getImageFormat()) != 'jpeg'){
-            $this->imagick->setImageFormat('jpeg');
+    public function convert($format = 'jpg'){
+        if(strtolower($this->imagick->getImageFormat()) != $format){
+            $this->imagick->setImageFormat($format);
         }
     }
 
     public function show($file){
-        header("Content-Type: image/jpeg");
+        header("Content-Type: image/jpg");
         echo $file;
         die;
     }
@@ -339,7 +329,7 @@ class Images{
         global $Core;
         return $Core->db->result("SELECT `src` FROM `{$Core->dbName}`.`images` WHERE `hash` = '{$md5}'");
     }
-    
+
     public function getIdBySrc($src,$validate = false){
         global $Core;
         $res = $Core->db->result("SELECT `id` FROM `{$Core->dbName}`.`images` WHERE `src` = '{$src}'");
@@ -348,7 +338,7 @@ class Images{
         }
         return $res;
     }
-    
+
     public function getSrcById($id,$validate = false){
         global $Core;
         $res = $Core->db->result("SELECT `src` FROM `{$Core->dbName}`.`images` WHERE `id` = {$id}");

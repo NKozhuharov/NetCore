@@ -400,6 +400,27 @@
             }
             return $result;
         }
+        
+        public function getCountByParentId($parentId){
+            global $Core;
+            
+            if(empty($this->parentField)){
+                throw new Exception ($Core->language->error_this_object_does_not_have_a_parent);
+            }
+
+            $parentId = intval($parentId);
+            if(empty($parentId)){
+                throw new Exception ($Core->language->error_parent_ID_cannot_be_empty);
+            }
+            
+            $Core->db->query("SELECT COUNT(*) AS 'ct' FROM `{$Core->dbName}`.`$this->tableName`
+            WHERE `{$this->parentField}` = $parentId",0,false,'fetch_assoc',$res);
+            
+            if(empty($res)){
+                return 0;
+            }
+            return $res['ct'];
+        }
 
         //gets all rows with the provided parent id
         public function getByParentId($parentId, $language = false, $noTranslation = false, $limit = false){

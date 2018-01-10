@@ -18,10 +18,10 @@ class Core{
     public $siteName   = 'example';
 
     //core models
-    #public $globalFunctions, $language, $rewrite;         
-    
+    #public $globalFunctions, $language, $rewrite;
+
     //rewrite override
-    public $rewriteOverride  = array('' => 'index');  
+    public $rewriteOverride  = array('' => 'index');
 
     //user model name
     public $userModel = 'user';
@@ -96,7 +96,7 @@ class Core{
 
         return true;
     }
-    
+
     public function __get($var){
         if(!isset($this->$var)){
             $var = strtolower($var);
@@ -126,11 +126,11 @@ class Core{
     //IMPORTANT! CALL INIT FUNCTION RIGHT AFTER CORE CONSTRUCTOR!
     public function init(){
         date_default_timezone_set($this->defaultTimezone);
-/*        
+/*
         $this->rewrite         = new Rewrite();
         $this->globalFunctions = new GlobalFunctions();
         $this->language        = new Language();
-        
+
 
         if($this->allowedModels && !is_array($this->allowedModels)){
             throw new Exception($this->language->error_allowed_models_must_be_an_array);
@@ -152,7 +152,7 @@ class Core{
                 unset($m);
             }
         }
-        
+
         if($this->siteClassesDir){
             foreach(scandir(GLOBAL_PATH.'classes/'.$this->siteClassesDir) as $c){
                 if(stristr($c,'.php')){
@@ -195,7 +195,7 @@ class Core{
             die;
         }
     }
-    
+
     public function lockPage(){
         if(!in_array($_SERVER['REMOTE_ADDR'],$this->debugIps)){
             exit('This page is currently after development. We are sorry for the inconvenience. For questions please contact your developers');
