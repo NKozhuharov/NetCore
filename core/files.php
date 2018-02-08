@@ -18,7 +18,7 @@ class Files extends Base{
             throw new exception ('Invalid hash!');
         }
 
-        $Core->db->query("SELECT * FROM `{$Core->dbName}`.`{$this->tableName}` WHERE `hash`='$hash'",$Core->cacheTime,false,'fetch_assoc',$result);
+        $Core->db->query("SELECT * FROM `{$Core->dbName}`.`{$this->tableName}` WHERE `hash`='$hash'",$Core->cacheTime,'fetch_assoc',$result);
         if(empty($result)){
             throw new exception('File not found!');
         }

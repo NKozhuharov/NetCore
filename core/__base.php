@@ -28,7 +28,7 @@
             global $Core;
             $Core->db->query("SELECT COLUMN_NAME AS 'id', DATA_TYPE AS 'type', IS_NULLABLE AS 'allow_null', COLUMN_DEFAULT AS 'default'
               FROM INFORMATION_SCHEMA.COLUMNS
-              WHERE `table_schema` = '{$Core->dbName}' AND `table_name` = '{$this->tableName}' AND COLUMN_NAME != 'id'",$noCache ? 0 : $Core->cacheTime,false,'fillArray',$columnsInfo);
+              WHERE `table_schema` = '{$Core->dbName}' AND `table_name` = '{$this->tableName}' AND COLUMN_NAME != 'id'",$noCache ? 0 : $Core->cacheTime,'fillArray',$columnsInfo);
 
             if(empty($columnsInfo)){
                 throw new exception("Table `{$this->tableName}` does not exist!");
@@ -157,7 +157,7 @@
                 return is_array($res) ? count($res) : 0;
             }
             else{
-                $Core->db->query("SELECT COUNT(*) AS 'ct' FROM `{$this->tableName}`".($additional ? " WHERE $additional" : ''),$Core->cacheTime,false,'fetch_assoc',$ct);
+                $Core->db->query("SELECT COUNT(*) AS 'ct' FROM `{$this->tableName}`".($additional ? " WHERE $additional" : ''),$Core->cacheTime,'fetch_assoc',$ct);
                 return $ct['ct'];
             }
         }
@@ -224,12 +224,12 @@
                 }
 
                 if($this->returnPhraseOnly){
-                    if($Core->db->query($q,$Core->cacheTime,false,'fillArraySingleField',$result,'object_id','phrase')){
+                    if($Core->db->query($q,$Core->cacheTime,'fillArraySingleField',$result,'object_id','phrase')){
                         return $result;
                     }
                 }
                 else{
-                    if($Core->db->query($q,$Core->cacheTime,false,'fillArray',$result,'id')){
+                    if($Core->db->query($q,$Core->cacheTime,'fillArray',$result,'id')){
                         return $result;
                     }
                 }
@@ -358,7 +358,7 @@
                 }
             }
 
-            $Core->db->query($q,$Core->cacheTime,false,'fillArray',$result);
+            $Core->db->query($q,$Core->cacheTime,'fillArray',$result);
 
             if(empty($result)){
                 return false;
@@ -376,7 +376,7 @@
                 }
                 $idList = implode(',',$idList);
 
-                $Core->db->query("SELECT * FROM `{$Core->dbName}`.`{$this->tableName}_lang` WHERE `object_id` IN ($idList) AND `lang_id`={$language}",$Core->cacheTime,false,'fillArray',$translations,'object_id');
+                $Core->db->query("SELECT * FROM `{$Core->dbName}`.`{$this->tableName}_lang` WHERE `object_id` IN ($idList) AND `lang_id`={$language}",$Core->cacheTime,'fillArray',$translations,'object_id');
                 unset($k,$v,$idList);
                 if(!empty($translations)){
                     foreach($translations as $k => $v){
@@ -409,11 +409,11 @@
             }
             return $result;
         }
-        
-        //returns 
+
+        //returns
         public function getCountByParentId($parentId){
             global $Core;
-            
+
             if(empty($this->parentField)){
                 throw new Exception ($Core->language->error_this_object_does_not_have_a_parent);
             }
@@ -422,10 +422,10 @@
             if(empty($parentId)){
                 throw new Exception ($Core->language->error_parent_ID_cannot_be_empty);
             }
-            
+
             $Core->db->query("SELECT COUNT(*) AS 'ct' FROM `{$Core->dbName}`.`$this->tableName`
-            WHERE `{$this->parentField}` = $parentId",0,false,'fetch_assoc',$res);
-            
+            WHERE `{$this->parentField}` = $parentId",0,'fetch_assoc',$res);
+
             if(empty($res)){
                 return 0;
             }

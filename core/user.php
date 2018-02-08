@@ -91,7 +91,7 @@ class User{
         $key = $Core->db->memcache->get($this->sessionKey);
 
         if($this->user = isset($key['expire'], $key['user'], $key['user']->loggedIn) && $key['user']->loggedIn && $key['expire'] >= time() ? $key['user'] : false){
-            
+
             $this->user->id       = intval($this->user->id);
             $this->user->level    = intval($this->user->level);
             $this->user->loggedIn = true;
@@ -111,11 +111,11 @@ class User{
 
     public function login($un, $pw){
         global $Core;
-        
+
         if(empty($un)){
             throw new Error($Core->language->error_please_enter_your_username);
         }
-        
+
         if(empty($pw)){
             throw new Error($Core->language->error_please_enter_your_password);
         }
@@ -127,7 +127,7 @@ class User{
             $this->setSession((object) $this->getUserInfo($userId));
             $this->setUser();
             if($this->lastLoginField){
-                $Core->db->query("UPDATE `{$Core->dbName}`.`{$this->usersTableName}` 
+                $Core->db->query("UPDATE `{$Core->dbName}`.`{$this->usersTableName}`
                 SET {$this->lastLoginField} = '".$Core->globalFunctions->formatMysqlTime(time(),true)."' WHERE `id` = {$this->user->id}");
             }
         }else{
@@ -135,33 +135,33 @@ class User{
         }
         return true;
     }
-    
+
     public function loginById($id){
         global $Core;
-        
+
         if(empty($id) || !is_numeric($id)){
             throw new Error($Core->language->error_invalid_id);
         }
-        
+
         $userInfo = $this->getUserInfo($id);
         if($userInfo){
             $this->setSession((object)$userInfo);
             $this->setUser();
             if($this->lastLoginField){
-                $Core->db->query("UPDATE `{$Core->dbName}`.`{$this->usersTableName}` 
+                $Core->db->query("UPDATE `{$Core->dbName}`.`{$this->usersTableName}`
                 SET {$this->lastLoginField} = '".$Core->globalFunctions->formatMysqlTime(time(),true)."' WHERE `id` = {$this->user->id}");
             }
         }
         else{
             throw new Error($Core->language->error_this_id_does_not_exist);
         }
-        
+
         return true;
     }
 
     public function logout($url = '/login', $redirect = true){
         global $Core;
-        
+
         $this->resetSession();
 
         if($redirect && (!isset($_SERVER['REQUEST_URI']) || $_SERVER['REQUEST_URI'] != $url)){
@@ -175,20 +175,20 @@ class User{
         if(empty($newPass)){
             throw new Error($Core->language->error_please_enter_your_password);
         }
-        
+
         if(empty($repeatPass)){
             throw new Error($Core->language->error_please_repeat_your_password);
         }
-        
+
         if($newPass !== $repeatPass){
             throw new Error($Core->language->error_passwords_do_not_match);
         }
         return true;
     }
-    
+
     public function validatePass($pass,$min=5,$max=20,$number=false,$caps=false,$symbol=false){
         global $Core;
-        
+
         if(empty($pass)){
             throw new Error($Core->language->error_please_provide_your_password);
         }
@@ -212,7 +212,7 @@ class User{
         }
         return $pass;
     }
-    
+
     public function validateUsername($username,$min=5,$max=20){
         global $Core;
         $username = trim($username);
@@ -274,16 +274,16 @@ class User{
     }
 
     //set third parameter to check for existing password!
-    public function changePass($userId, $newPass, $repeatPass, $currentPass = false, 
+    public function changePass($userId, $newPass, $repeatPass, $currentPass = false,
     $min = 5, $max = 20, $numbers = false, $caps = false, $symbols = false){
         global $Core;
-        
+
         if($currentPass !== false && empty($currentPass)){
             throw new Error($Core->language->error_please_enter_your_current_password);
         }
 
         $this->checkPass($newPass, $repeatPass);
-        
+
         $this->validatePass($newPass,$min,$max,$numbers,$caps,$symbols);
 
         $chPass = $Core->db->result("SELECT `password` FROM `{$Core->dbName}`.`{$this->usersTableName}` WHERE `id` = $userId");
@@ -295,21 +295,21 @@ class User{
         }
         unset($chPass);
 
-        $Core->db->query("UPDATE `{$Core->dbName}`.`{$this->usersTableName}` 
-        SET `password` = '".$this->hashPassword($newPass)."' 
+        $Core->db->query("UPDATE `{$Core->dbName}`.`{$this->usersTableName}`
+        SET `password` = '".$this->hashPassword($newPass)."'
         WHERE`id` = '$userId'");
 
         throw new Success($Core->language->password_changed_successfully);
     }
-    
+
     public function requestPasswordToken($email){
         global $Core;
-        
+
         if(empty($email)){
             throw new Error($Core->language->error_please_enter_your_email_address);
         }
-        
-        $Core->db->query("SELECT `id`,`username` FROM `{$Core->dbName}`.`{$this->usersTableName}` WHERE `email` = '$email'",0,false,'fetch_assoc',$user);
+
+        $Core->db->query("SELECT `id`,`username` FROM `{$Core->dbName}`.`{$this->usersTableName}` WHERE `email` = '$email'",0,'fetch_assoc',$user);
         if(empty($user)){
             throw new Error($Core->language->error_this_user_does_not_exist);
         }
@@ -318,51 +318,51 @@ class User{
         $token = $Core->db->result("SELECT `token` FROM `{$Core->dbName}`.`{$this->userRecoveryTableName}` WHERE `user_id` = '{$user['id']}'");
         if(empty($token)){
             $token = md5(uniqid());
-            $Core->db->query("INSERT INTO `{$Core->dbName}`.`{$this->userRecoveryTableName}` 
+            $Core->db->query("INSERT INTO `{$Core->dbName}`.`{$this->userRecoveryTableName}`
                 (`id`,`user_id`,`token`) VALUES (NULL,{$user['id']},'$token')
             ");
         }
-        
+
         $body = $Core->language->you_requested_a_password_chanage_for.' '.$user['username'].' '.
         $Core->language->please_click_on_the_following_link_to_change_your_password.'<br />'.
         $Core->siteDomain.'/recoverpass?token='.$token;
-        
+
         $Core->GlobalFunctions->sendEmail($Core->siteName,$Core->siteName,$Core->language->recover_password_request,$email,$body);
-        
+
         throw new Success($Core->language->password_recover_token_sent_successfully);
     }
-    
+
     public function recoverPassword($token){
         global $Core;
-        
+
         if(empty($token)){
             throw new Error($Core->language->error_invalid_token);
         }
-        
+
         $token = $Core->db->real_escape_string($token);
-        
+
         $userId = $Core->db->result("SELECT `id` FROM `{$Core->dbName}`.`{$this->userRecoveryTableName}` WHERE `token` = '$token'");
         if(empty($userId)){
             throw new Error($Core->language->error_invalid_token);
         }
-        
+
         $newPass = strtoupper(substr(md5(time()),5,10));
-        
+
         //send email here
-        
-        
-        $Core->db->query("UPDATE `{$Core->dbName}`.`{$this->usersTableName}` 
-        SET `password` = '".$this->hashPassword($newPass)."' 
+
+
+        $Core->db->query("UPDATE `{$Core->dbName}`.`{$this->usersTableName}`
+        SET `password` = '".$this->hashPassword($newPass)."'
         WHERE`id` = '$userId'");
-        
+
         $Core->db->query("DELETE FROM `{$Core->dbName}`.`{$this->userRecoveryTableName}` WHERE `token` = '$token'");
-        
+
         throw new Success($Core->language->new_password_sent_successfully);
     }
 
     public function getUserInfo($id){
         global $Core;
-        
+
         $id = intval($id);
         if(empty($id)){
             throw new exception($Core->languge->error_invalid_id);
@@ -387,7 +387,7 @@ class User{
         else{
             $q = "SELECT *, 'true' AS 'loggedIn', '0' AS 'level' FROM `{$Core->dbName}`.`{$this->usersTableName}` WHERE `{$Core->dbName}`.`{$this->usersTableName}`.`id`= '$id'";
         }
-        if($Core->db->query($q, 0, false, 'fetch_assoc',$user)){
+        if($Core->db->query($q, 0, 'fetch_assoc',$user)){
             return $user;
         }
         return false;
@@ -408,7 +408,7 @@ class User{
                 `{$Core->dbName}`.`{$this->pagesTableName}`.`level_id` = `{$Core->dbName}`.`{$this->userLevelTableName}`.`id`
             WHERE
                 `{$Core->dbName}`.`{$this->pagesTableName}`.`url` = '".$Core->db->escape($Core->rewrite->URL)."'"
-            , 0, false, 'fetch_assoc', $mainPage))
+            , 0,'fetch_assoc', $mainPage))
         {
             $this->pageLevel = intval($mainPage['level']);
             $this->pageId    = intval($mainPage['id']);
@@ -445,7 +445,7 @@ class User{
             $q = "SELECT * FROM `{$Core->dbName}`.`{$this->pagesTableName}` WHERE `name` IS NOT NULL AND `name` != '' ORDER BY `order` ASC, `name` ASC";
         }
 
-        if($Core->db->query($q, 0,false, 'simpleArray', $pages)){
+        if($Core->db->query($q, 0, 'simpleArray', $pages)){
             return $pages;
         }
         return false;

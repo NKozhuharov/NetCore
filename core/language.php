@@ -2,21 +2,21 @@
 class Language{
     protected $defaultLanguage = 'en';
     protected $defaultLanguageId = 41;
-    
+
     public $currentLanguage = false;
     public $currentLanguageId = false;
-    
+
     public $phrases = array();
     public $phrasesText = array();
-    
+
     public $langMap = array();
     public $allowedLanguages = array();
 
     public function __construct(){
         global $Core;
         $Core->db->query("SELECT `id`,LOWER(`short`) AS 'sh' FROM `{$Core->dbName}`.`languages` WHERE `active`=1",
-        0,false,'fillArraySingleField', $this->allowedLanguages, 'id', 'sh');
-        
+        0,'fillArraySingleField', $this->allowedLanguages, 'id', 'sh');
+
         $this->getLanguage();
         $this->getPhrases();
         $this->getLanguageMap();
@@ -64,17 +64,17 @@ class Language{
             "SELECT `phrase`,
             IF(`".$this->currentLanguage."` IS NULL OR `".$this->currentLanguage."` = '', `".$this->defaultLanguage."`, `".$this->currentLanguage."`) AS `translation`
             FROM `{$Core->dbName}`.`phrases`"
-            ,0 , false, 'fillArraySingleField', $this->phrases, 'phrase', 'translation'
+            ,0 , 'fillArraySingleField', $this->phrases, 'phrase', 'translation'
         );
         $Core->db->query(
             "SELECT `phrase`,
             IF(`".$this->currentLanguage."` IS NULL OR `".$this->currentLanguage."` = '', `".$this->defaultLanguage."`, `".$this->currentLanguage."`) AS `translation`
             FROM `{$Core->dbName}`.`phrases_text`"
-            ,0 , false, 'fillArraySingleField', $this->phrasesText, 'phrase', 'translation'
+            ,0 , 'fillArraySingleField', $this->phrasesText, 'phrase', 'translation'
         );
         return true;
     }
-    
+
     public function changeLanguage($language){
         if(in_array(strtolower($language), $this->allowedLanguages)){
             $this->currentLanguage = $language;
@@ -82,7 +82,7 @@ class Language{
             setcookie('language', $language, time()+86400, '/');
             $this->getPhrases();
         }
-        
+
         return true;
     }
 
@@ -91,7 +91,7 @@ class Language{
             return $this->langMap;
         }
         global $Core;
-        $Core->db->query("SELECT `id`,`name`,`native_name`,`short`,LOWER(`short`) AS 'lower' FROM `{$Core->dbName}`.`languages`".(($active) ? "WHERE `active`=1" : ''),0,false,'fillArray',$langMap);
+        $Core->db->query("SELECT `id`,`name`,`native_name`,`short`,LOWER(`short`) AS 'lower' FROM `{$Core->dbName}`.`languages`".(($active) ? "WHERE `active`=1" : ''),0,'fillArray',$langMap);
         $result = array();
         foreach($langMap as $m){
             $result[$m['id']] = $m;
@@ -135,11 +135,11 @@ class Language{
     public function useTranslation(){
         return ($this->defaultLanguageId == $this->currentLanguageId) ? false : true;
     }
-    
+
     public function getAll($translate = true){
         global $Core;
 
-        $Core->db->query("SELECT `id`,`name` FROM `{$Core->dbName}`.`languages` ORDER BY `name` ASC",0,false,'fillArraySingleField',$temp,'id','name');
+        $Core->db->query("SELECT `id`,`name` FROM `{$Core->dbName}`.`languages` ORDER BY `name` ASC",0,'fillArraySingleField',$temp,'id','name');
         if($translate){
             $langs = array();
             foreach($temp as $k => $v){
@@ -149,7 +149,7 @@ class Language{
             asort($langs);
             return $langs;
         }
-        
+
         return $temp;
     }
 }

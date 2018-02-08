@@ -84,7 +84,7 @@
             }
             
             if($parentId){
-                return $this->getByParentId($parentId);
+                return $this->getByParentId($parentId,$language,$noTranslation,$limit);
             }
             
             if($limit){
@@ -94,11 +94,11 @@
             return $this->sphinxQuery();
         }
         
-        public function getParentId($objectId){
+        public function getByParentId($parentId, $language = false, $noTranslation = false, $limit = false){
             global $Core;
-            $objectId = intval($objectId);
-            if(empty($objectId)){
-                throw new Exception($Core->language->error_object_id_cannot_be_empty);
+            $parentId = intval($parentId);
+            if(empty($parentId)){
+                throw new Exception($Core->language->error_parent_id_cannot_be_empty);
             }
             
             if(empty($this->parentField)){
@@ -106,7 +106,13 @@
             }
             
             $this->sphinx->setFilter($this->parentField,$parentId);
-            $this->sphinx->setLimits(0,1000000,1000000);
+            
+            if($limit === false){
+                $this->sphinx->setLimits(0,1000000,1000000);
+            }
+            else if(is_numeric($limit)){
+                $this->sphinx->setLimits(0,$limit,$limit);
+            }
             
             return $this->sphinxQuery();
         }

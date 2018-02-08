@@ -123,12 +123,11 @@
             );
         }
 
-        public function query($sql,$cacheTime=60,$changeCheck=false,$template=false,&$store=false,$keys="id",$field=false){
+        public function query($sql,$cacheTime=60,$template=false,&$store=false,$keys="id",$field=false){
             global $Core;
 
             if($Core->cacheTime == -1){
                 $cacheTime = -1;
-                $changeCheck=false;
             }
             $select=0;
 
@@ -150,21 +149,8 @@
                     $var=false;
                     $newQuery=1;
                 }
-                if($var!=false && !empty($var) && (time()>=$var['cacheTime']+($cacheTime*60))){
-                    if($changeCheck!=false){
-                        $check=$this->changeCheck($changeCheck);
-                        debug(array("CheckQuery" => $check));
-                        if($check){
-                            debug("Check Query Returned No Change life Extended");
-                            $var['cacheTime']=time();
-                            $this->memcache->set($cacheName,$var);
-                        }else{
-                            $newQuery=1;
-                        }
-                    }else{
-                        $newQuery=1;
-                    }
-                }elseif($var==false){
+                
+                if(($var!=false && !empty($var) && (time()>=$var['cacheTime']+($cacheTime*60))) || $var==false){
                     $newQuery=1;
                 }
 

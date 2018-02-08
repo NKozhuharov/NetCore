@@ -6,7 +6,7 @@
             $db->query(
                 "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS
                 WHERE TABLE_SCHEMA = '$TABLE_SCHEMA' AND TABLE_NAME = '$TABLE_NAME'"
-                , 0, false, 'fillArraySingleField', $columns, 'COLUMN_NAME', 'COLUMN_NAME'
+                , 0, 'fillArraySingleField', $columns, 'COLUMN_NAME', 'COLUMN_NAME'
             );
             if(!$columns){
                 throw new Exception("Table `$TABLE_SCHEMA`.`$TABLE_NAME` does'n exist.");
@@ -163,9 +163,6 @@
 
         public static function void(){
             //mi void nishto ne pravi za recache i takiva neshta se polzva
-        }
-        public static function devnull(){
-            //syshtoto kato void
         }
     }
 ?>
