@@ -10,12 +10,13 @@ class Core{
     public $allowedModels        = false; //do not initialize models
     public $doNotStrip           = false; //do not strip theese parameters
     public $pageNotFoundLocation = '/not-found';//moust not be numeric so the rwrite can work
+    public $allowFirstPage       = false; //if allowed url like "/1" won't redirect to $pageNotFoundLocation
     public $siteClassesDir       = false; //current site classes
     public $isBot                = false; //current script is bot
 
     //domain
-    public $siteDomain = 'https://example.com';
-    public $siteName   = 'example';
+    public $siteDomain = 'https://streamservant.com';
+    public $siteName   = 'streamservant';
 
     //core models
     #public $globalFunctions, $language, $rewrite;
@@ -84,7 +85,7 @@ class Core{
         $this->mc     = mc::getInstance($info['mc']);
         $this->db     = db::getInstance($info['db']);
 
-        $this->siteDir        = GLOBAL_PATH.site.'/';
+        $this->siteDir        = GLOBAL_PATH.(isset($info['sitepath']) ? $info['sitepath'] : site).'/';
         $this->controllersDir = $this->siteDir.'controllers/';
         $this->viewsDir       = $this->siteDir.'views/';
 
@@ -98,8 +99,8 @@ class Core{
     }
 
     public function __get($var){
+        $var = strtolower($var);
         if(!isset($this->$var)){
-            $var = strtolower($var);
             if(is_file($this->siteDir.'models/'.$var.'.php')){
                 require_once($this->siteDir.'models/'.$var.'.php');
                 $this->$var = new $var();
@@ -118,7 +119,7 @@ class Core{
             return false;
         }
         else{
-            return $this->var;
+            return $this->$var;
         }
         return false;
     }
@@ -126,45 +127,11 @@ class Core{
     //IMPORTANT! CALL INIT FUNCTION RIGHT AFTER CORE CONSTRUCTOR!
     public function init(){
         date_default_timezone_set($this->defaultTimezone);
-/*
-        $this->rewrite         = new Rewrite();
-        $this->globalFunctions = new GlobalFunctions();
-        $this->language        = new Language();
 
-
-        if($this->allowedModels && !is_array($this->allowedModels)){
-            throw new Exception($this->language->error_allowed_models_must_be_an_array);
-        }
-*/
         $this->globalFunctions->stripAllFields($_POST, $this->doNotStrip);
         $this->globalFunctions->stripAllFields($_GET, $this->doNotStrip);
         $this->globalFunctions->stripAllFields($_REQUEST, $this->doNotStrip);
-/*
-        foreach(scandir($this->siteDir.'models/') as $m){
-            if(stristr($m,'.php')){
-                $m = str_replace('.php','',$m);
-                if(!$this->allowedModels || (in_array($m,$this->allowedModels))){
-                    require_once($this->siteDir.'models/'.$m.'.php');
-                    $cName = ucfirst($m);
-                    $this->$m = new $cName();
-                    unset($cName);
-                }
-                unset($m);
-            }
-        }
 
-        if($this->siteClassesDir){
-            foreach(scandir(GLOBAL_PATH.'classes/'.$this->siteClassesDir) as $c){
-                if(stristr($c,'.php')){
-                    require_once(GLOBAL_PATH.'classes/'.$this->siteClassesDir.'/'.$c);
-                    $c = str_replace('.php','',$c);
-                    $cName = ucfirst($c);
-                    $this->$c = new $cName();
-                    unset($cName);
-                }
-            }
-        }
-*/
         return true;
     }
 

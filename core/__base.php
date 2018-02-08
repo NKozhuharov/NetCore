@@ -8,9 +8,10 @@
         protected $searchByField = false; //if there is no need for autocomplete table, the search function will search according to this field
         protected $returnPhraseOnly = true; //if this is set to true, search function will return only the id and the phrase of the result; otherwise it will return the whole row
         protected $showHiddenRows = false; //if set to true, search and getAll functios will not consider the 'hidden' columns in the db
-        
+
         public $orderByField = 'name'; //default order by field is 'name'
         public $orderType = 'ASC'; //default order type is asc
+        public $additionalOrdering = false; //more ordering
         public $returnTimestamps = false; //use this if you need your GetWhatever function to return you a UNIX_TIMESTAMP of the timestamp fields as well
 
         protected $translationFields = array(); //fields in the table, which has translations in the {table}_lang
@@ -67,12 +68,12 @@
             return $this->translationFields;
         }
 
-        //retuns the current tableName
+        //retuns the current TableName
         public function getTableName(){
             return $this->tableName;
         }
 
-        //changes the current tableName. Use with caution!!!
+        //changes the current TableName. Use with caution!!!
         public function changeTableName($name){
             if(empty($name)){
                 throw new exception("Invalid name!");
@@ -83,13 +84,12 @@
             $this->getTableInfo(true);
             return true;
         }
-        
-        //changes the current parentField; useful with changeTableName
+
         public function changeParentField($name){
             if(empty($name)){
                 throw new exception("Invalid name!");
             }
-            
+
             if(!isset($this->tableFields[$name])){
                 throw new exception("This field does not exist in the table!");
             }
@@ -121,7 +121,6 @@
             return $language;
         }
 
-/*deprecated
         //converts timestamp into mysql date
         public function formatMysqlDate($date){
             if(!is_int($date) || $date < 0){
@@ -129,16 +128,20 @@
             }
             return date('Y-m-d',$date);
         }
-*/
+
         //OUTPUT FUNCTIONS
         //gets the parent id of the row in the table
         public function getParentId($objectId){
             global $Core;
+
+            if(!is_numeric($objectId)){
+                throw new Exception ($Core->language->error_object_id_must_be_numeric);
+            }
             $objectId = intval($objectId);
             if(empty($objectId)){
                 throw new Exception($Core->language->error_object_id_cannot_be_empty);
             }
-            
+
             if(empty($this->parentField)){
                 throw new Exception($Core->language->error_this_class_does_not_have_a_parent_id.' - '.get_class($this));
             }
@@ -203,8 +206,11 @@
                     if($additional){
                         $q .= ' AND '.$additional;
                     }
-                    
+
                     $q .= " ORDER BY `".((!empty($this->orderByField)) ? $this->orderByField : $this->searchByField)."` {$this->orderType}, `id` ASC";
+                    if($this->additionalOrdering){
+                        $q .= ', '.$this->additionalOrdering;
+                    }
                 }
                 else throw new Exception("In order to use the search function, plesae define autocompleteField and autocompleteObjectId or searchByField!");
 
@@ -289,7 +295,7 @@
                 foreach($this->tableFields as $k => $v){
                     if($v['type'] == 'timestamp'){
                         $q .= ", UNIX_TIMESTAMP(`$k`) AS '{$k}_timestamp'";
-                    }   
+                    }
                 }
                 unset($k,$v);
             }
@@ -338,6 +344,9 @@
 
             if(empty($id)){
                 $q .= " ORDER BY $order $ascDesc";
+                if($this->additionalOrdering){
+                    $q .= ', '.$this->additionalOrdering;
+                }
             }
 
             if($limit){
@@ -401,6 +410,7 @@
             return $result;
         }
         
+        //returns 
         public function getCountByParentId($parentId){
             global $Core;
             
@@ -458,10 +468,10 @@
             }
 
             foreach ($input as $k => $v){
-                if($k == 'added'){
+                if($k === 'added'){
                     throw new Exception ($Core->language->field_added_is_not_allowed);
                 }
-                if($k == 'id'){
+                if($k === 'id'){
                     throw new Exception ($Core->language->field_id_is_not_allowed);
                 }
 
@@ -473,7 +483,7 @@
                     $v = trim($v);
                 }
 
-                if(!empty($v) || (is_numeric($v) && $v == '0')){
+                if(!empty($v) || ((is_numeric($v) && intval($v) === 0))){
                     if(!empty($requiredBuffer) && ($key = array_search($k, $requiredBuffer)) !== false) {
                         unset($requiredBuffer[$key]);
                     }
@@ -534,7 +544,7 @@
                         }
                         else if(is_array($v)){
                             $k = str_ireplace('_id','',$k);
-                            throw new Exception($Core->language->error_field.' \"'.$Core->language->$k.'\" '.$Core->language->error_must_be_numeric_string);
+                            throw new Exception($Core->language->error_field.' \"'.$Core->language->$k.'\" '.$Core->language->error_must_be_alphanumeric_string);
                         }
 
                         $temp[$k] = $Core->db->real_escape_string($v);
@@ -636,8 +646,7 @@
             }
             return true;
         }
-        
-        //deletes a set of rows from the table, according to their parent id
+
         public function deleteByParentId($id){
             global $Core;
 
@@ -645,11 +654,11 @@
             if(empty($id)){
                 throw new Exception ($Core->language->error_id_cannot_be_empty);
             }
-            
+
             if(empty($this->parentField)){
                 throw new Exception($Core->language->error_this_class_does_not_have_a_parent_id.' - '.get_class($this));
             }
-            
+
             try{
                 if($this->autocompleteObjectId > 0){
                     $ids = $this->getByParentId($id);
@@ -659,7 +668,7 @@
                     }
                     else{
                         foreach($ids as $i){
-                            $in .= $i['id'].',';    
+                            $in .= $i['id'].',';
                         }
                         unset($i);
                         $in = substr($in,0,-1);
@@ -689,7 +698,13 @@
             global $Core;
             $language = $this->checkLanguage($language);
 
+            if(!is_numeric($objectId)){
+                throw new Exception ($Core->language->error_object_id_must_be_numeric);
+            }
             $objectId = intval($objectId);
+            if(empty($objectId)){
+                throw new Exception($Core->language->error_object_id_cannot_be_empty);
+            }
             $object = $this->getAll(false,true,false,false,$objectId);
 
             if(empty($object)){
@@ -742,11 +757,14 @@
             }
             return true;
         }
-        
+
         //this functions updates the database row $objectId with the values from $input
         public function update($objectId,$input){
             global $Core;
 
+            if(!is_numeric($objectId)){
+                throw new Exception ($Core->language->error_object_id_must_be_numeric);
+            }
             if(empty($input) || !is_array($input)){
                 throw new Exception ($Core->language->error_input_must_be_a_non_empty_array);
             }
@@ -755,6 +773,9 @@
             }
 
             $objectId = intval($objectId);
+            if(empty($objectId)){
+                throw new Exception($Core->language->error_object_id_cannot_be_empty);
+            }
             $object = $this->getAll(false,true,false,false,$objectId);
 
             if(empty($object)){
@@ -768,7 +789,7 @@
                 $q .= "`$k` = ".((empty($v) && $v !== 0 && $v !== '0') ? 'NULL' : (is_numeric($v) ? $v : "'$v'")).",";
             }
             $q = "UPDATE `{$Core->dbName}`.`{$this->tableName}` SET ".substr($q,0,-1)." WHERE `id` = $objectId";
-            
+
             if($this->autocompleteObjectId > 0){
                 $acField = $this->formAutocompleteField($input);
                 if(empty($acField)){
@@ -820,7 +841,7 @@
             }
             throw new exception("Template file $clName.php does not exist! Please create it in the 'templates' folder!");
         }
-        
+
         //alias of getTemplate function
         public function template($params = false){
             return $this->getTemplate($params);
@@ -869,7 +890,6 @@
             return $input;
         }
 
-        //this is used for some automated exception handling, using the foreign key descriptions of the tables
         private function handleBuilderException($ex){
             global $Core;
             $m = $ex->getMessage();

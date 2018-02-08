@@ -8,10 +8,11 @@ class User{
     public  $pageId             = false;
     public  $emailRequired      = true;
 
-    protected $usersTableName     = false;
-    protected $userLevelTableName = false;
-    protected $pagesTableName     = 'pages';
-    protected $lastLoginField     = false; //set this to record last login time
+    protected $usersTableName        = false;
+    protected $userLevelTableName    = false;
+    protected $pagesTableName        = 'pages';
+    protected $lastLoginField        = false; //set this to record last login time
+    protected $userRecoveryTableName = false; //set this to enable password recovery functions, must contain user_id(int) and token(varchar 50)
 
     public $user                = false;
 
@@ -273,10 +274,17 @@ class User{
     }
 
     //set third parameter to check for existing password!
-    public function changePass($userId, $newPass, $repeatPass, $currentPass = false){
+    public function changePass($userId, $newPass, $repeatPass, $currentPass = false, 
+    $min = 5, $max = 20, $numbers = false, $caps = false, $symbols = false){
         global $Core;
+        
+        if($currentPass !== false && empty($currentPass)){
+            throw new Error($Core->language->error_please_enter_your_current_password);
+        }
 
         $this->checkPass($newPass, $repeatPass);
+        
+        $this->validatePass($newPass,$min,$max,$numbers,$caps,$symbols);
 
         $chPass = $Core->db->result("SELECT `password` FROM `{$Core->dbName}`.`{$this->usersTableName}` WHERE `id` = $userId");
         if(empty($chPass)){
@@ -287,16 +295,69 @@ class User{
         }
         unset($chPass);
 
-        $Core->db->query("
-            UPDATE
-                `{$Core->dbName}`.`{$this->usersTableName}`
-            SET
-                `password` = '".$this->hashPassword($newPass)."'
-            WHERE
-                `id` = '$userId'
-        ");
+        $Core->db->query("UPDATE `{$Core->dbName}`.`{$this->usersTableName}` 
+        SET `password` = '".$this->hashPassword($newPass)."' 
+        WHERE`id` = '$userId'");
 
-        throw new Success($Core->language->password_changed);
+        throw new Success($Core->language->password_changed_successfully);
+    }
+    
+    public function requestPasswordToken($email){
+        global $Core;
+        
+        if(empty($email)){
+            throw new Error($Core->language->error_please_enter_your_email_address);
+        }
+        
+        $Core->db->query("SELECT `id`,`username` FROM `{$Core->dbName}`.`{$this->usersTableName}` WHERE `email` = '$email'",0,false,'fetch_assoc',$user);
+        if(empty($user)){
+            throw new Error($Core->language->error_this_user_does_not_exist);
+        }
+
+        //check for existing token
+        $token = $Core->db->result("SELECT `token` FROM `{$Core->dbName}`.`{$this->userRecoveryTableName}` WHERE `user_id` = '{$user['id']}'");
+        if(empty($token)){
+            $token = md5(uniqid());
+            $Core->db->query("INSERT INTO `{$Core->dbName}`.`{$this->userRecoveryTableName}` 
+                (`id`,`user_id`,`token`) VALUES (NULL,{$user['id']},'$token')
+            ");
+        }
+        
+        $body = $Core->language->you_requested_a_password_chanage_for.' '.$user['username'].' '.
+        $Core->language->please_click_on_the_following_link_to_change_your_password.'<br />'.
+        $Core->siteDomain.'/recoverpass?token='.$token;
+        
+        $Core->GlobalFunctions->sendEmail($Core->siteName,$Core->siteName,$Core->language->recover_password_request,$email,$body);
+        
+        throw new Success($Core->language->password_recover_token_sent_successfully);
+    }
+    
+    public function recoverPassword($token){
+        global $Core;
+        
+        if(empty($token)){
+            throw new Error($Core->language->error_invalid_token);
+        }
+        
+        $token = $Core->db->real_escape_string($token);
+        
+        $userId = $Core->db->result("SELECT `id` FROM `{$Core->dbName}`.`{$this->userRecoveryTableName}` WHERE `token` = '$token'");
+        if(empty($userId)){
+            throw new Error($Core->language->error_invalid_token);
+        }
+        
+        $newPass = strtoupper(substr(md5(time()),5,10));
+        
+        //send email here
+        
+        
+        $Core->db->query("UPDATE `{$Core->dbName}`.`{$this->usersTableName}` 
+        SET `password` = '".$this->hashPassword($newPass)."' 
+        WHERE`id` = '$userId'");
+        
+        $Core->db->query("DELETE FROM `{$Core->dbName}`.`{$this->userRecoveryTableName}` WHERE `token` = '$token'");
+        
+        throw new Success($Core->language->new_password_sent_successfully);
     }
 
     public function getUserInfo($id){

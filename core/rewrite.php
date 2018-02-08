@@ -5,6 +5,7 @@ class Rewrite{
     private $PATH       = false;
     public $GET         = false;
     public $URL         = false;
+    public $URLGETPART  = '';    
     public $currentPage = 1;
 
     public function __construct($override = false){
@@ -22,15 +23,22 @@ class Rewrite{
             preg_match_all("{/([^/]*)}", $qs, $matches);
         }else{
             preg_match_all("{/([^/]*)}", $q, $matches);
-        }
+        }                
 
         $matches   = $matches[1];
         $this->GET = $matches;
+        
+        if(stristr($q,'?')){
+            $this->URLGETPART = substr($q,strpos($q,'?'));
+                    
+        }                
 
         if(isset($_REQUEST['page']) && is_numeric($_REQUEST['page']) && intval($_REQUEST['page']) !== 1){
             $this->currentPage = $_REQUEST['page'];
         }elseif(isset($matches[count($matches)-1]) && is_numeric($matches[count($matches)-1]) && intval($matches[count($matches)-1]) !== 1){
             $this->currentPage = $matches[count($matches)-1];
+            unset($matches[count($matches)-1]);
+        }elseif($Core->allowFirstPage && isset($matches[count($matches)-1]) && is_numeric($matches[count($matches)-1]) && intval($matches[count($matches)-1]) === 1){
             unset($matches[count($matches)-1]);
         }
 

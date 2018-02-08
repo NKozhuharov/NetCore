@@ -139,7 +139,8 @@ class GlobalFunctions{
 
     //sends email; requires PHPMailer library to work!
     public function sendEmail($from = false, $fromName = false, $subject = false, $addAddress = false, $body = false, $isHTML = false, $attachment = false, $isAdnmin = false){
-        require_once('/var/www/classes/PHPMailer-master/PHPMailerAutoload.php');
+        global $Core;
+        require_once('/var/www/classes/core/PHPMailer-master/PHPMailerAutoload.php');
         $mail = new PHPMailer;
         $mail->isSMTP();
 
@@ -193,7 +194,7 @@ class GlobalFunctions{
     }
 
     //pagination function
-    public function drawPagination($resultsCount, $url, $currentPage, $firstLast = false, array $html, $firstPage = false){
+    public function drawPagination($resultsCount, $url, $currentPage = false, $firstLast = false, $html = array(), $firstPage = false){
         global $Core;
 
         if($resultsCount <= $Core->itemsPerPage){
@@ -458,6 +459,19 @@ class GlobalFunctions{
         $bytes /= pow(1024, $pow);
         return round($bytes, $precision) . ' ' . $units[$pow];
     }
+    
+    public function formatNumberToReadable($number){
+        if($number < 1000){
+            return $number;
+        }
+        if($number < 1000000){
+            return number_format(($number / 1000),0).'K';
+        }
+        if($number < 1000000000){
+            return number_format(($number / 1000000),0).'M';
+        }
+        return number_format(($number / 1000000000),0).'B';
+    }
 
     //put this in the header
     public function insertMeta(){
@@ -535,6 +549,28 @@ class GlobalFunctions{
         }
 
         return true;
+    }
+    
+    public function checkIfProcessIsRunning($processName){
+        global $Core;
+        if(empty($processName)){
+            throw new Error($Core->language->error_provide_a_process_name);
+        }
+        
+        exec("ps ax | grep '$processName'",$res);
+        
+        return count($res) > 2 ? true : false;
+    }
+    
+    public function getProcessInstancesCount($processName){
+        global $Core;
+        if(empty($processName)){
+            throw new Error($Core->language->error_provide_a_process_name);
+        }
+        
+        exec("ps ax | grep '$processName'",$res);
+        
+        return count($res) - 2;
     }
 }
 ?>

@@ -18,26 +18,30 @@ class Images{
         )
     );
 
-    public $sizeLimit     = 10485760; //10MB
-    public $sizeLimitText = '10MB';
-    public $uploadName    = 'imageUpload';
-    public $extension     = '.jpg';
-    public $currentFolder = false;
-    public $folderNumber  = false;
-    public $name          = false;
-    public $file          = false;
-    public $files         = array();
-    public $orgMd5        = false;
-    public $currentFile   = false;
-    public $response      = array();
-    public $upload        = false;
-    public $width         = false;
-    public $height        = false;
-    public $type          = false;
-    public $key           = false;
-    public $imagick       = false;
-    public $hasWatermark  = 0;
-    public $watermark     = false; //'/var/www/site/www/img/watermark.png';
+    public $sizeLimit      = 10485760; //10MB
+    public $sizeLimitText  = '10MB';
+    public $format         = 'jpg';
+    public $uploadName     = 'imageUpload';
+    public $onlyUpload     = false;
+    public $showResponse   = true;
+    public $allowDuplicate = true;
+    public $dieWhenDone    = true;
+    public $currentFolder  = false;
+    public $folderNumber   = false;
+    public $name           = false;
+    public $file           = false;
+    public $files          = array();
+    public $orgMd5         = false;
+    public $currentFile    = false;
+    public $response       = array();
+    public $upload         = false; //file upload or http request
+    public $width          = false;
+    public $height         = false;
+    public $type           = false;
+    public $key            = false;
+    public $imagick        = false;
+    public $hasWatermark   = 0;
+    public $watermark      = false; //'/var/www/site/www/img/watermark.png';
 
     public function __construct(){
        if(isset($_FILES[$this->uploadName], $_FILES[$this->uploadName]['tmp_name']) && is_array($_FILES[$this->uploadName]['tmp_name'])){
@@ -61,12 +65,24 @@ class Images{
                 $this->processResized();
             }
 
+
             if(count($this->response) == 1){
-                echo $this->response[0];
+                if($this->showResponse){
+                    echo $this->response[0];
+                }else{
+                    return $this->response[0];
+                }
             }else{
-                echo json_encode($this->response);
+                if($this->showResponse){
+                    echo json_encode($this->response);
+                }else{
+                    return $this->response;
+                }
             }
-            die;
+
+            if($this->dieWhenDone){
+                die;
+            }
        }elseif(substr($_SERVER['REQUEST_URI'], 0, 7) == '/images'){
             $this->checks();
             $this->setImagick($this->file);
@@ -180,24 +196,38 @@ class Images{
         global $Core;
         $exists = $this->exists($this->orgMd5);
 
+        if(!$this->allowDuplicate && $exists){
+            throw new Exception($Core->language->error_this_image_already_exists);
+        }
+
         if(!$exists){
             if(isset($_REQUEST['watermark'])){
                 $this->hasWatermark = 1;
             }else{
                 $this->hasWatermark = 0;
             }
-            $name = $this->getName();
+            $this->getName();
 
             //keep original witout watermark
-            $this->insert($Core->imagesStorage.$this->folderNumber.'/', $name, $this->orgMd5, 1, $this->hasWatermark);
+            $this->insert($Core->imagesStorage.$this->folderNumber.'/', $this->name, $this->orgMd5, 1, $this->hasWatermark);
         }else{
             $this->name = substr($exists, strripos($exists, '/')+1);
             $this->name = substr($this->name, 0, strripos($this->name, '.'));
+        }
+
+        //upload only org image in non-web folder and return file path
+        if($this->onlyUpload){
+            $this->response[] = $Core->imagesStorage.$this->folderNumber.'/'.$this->name.'.'.$this->format;
         }
     }
 
     public function processResized(){
         global $Core;
+
+        //upload only org image in non-web folder and return file path
+        if($this->onlyUpload){
+            return;
+        }
 
         //resize image if not org wanted
         if($this->type != 'org'){
@@ -214,11 +244,11 @@ class Images{
 
         //check if resized image exists && upload is on
         //!!! imagick __toString returns different string from file_get_contents
-        if(is_file($Core->imagesDir.$this->currentFolder.$this->name.$this->extension)){
+        if(is_file($Core->imagesDir.$this->currentFolder.$this->name.'.'.$this->format)){
             if(!$this->upload){
                 $this->show($file);
             }
-            $this->response[] = urldecode($Core->imagesWebDir.$this->currentFolder.$this->name.$this->extension);
+            $this->response[] = urldecode($Core->imagesWebDir.$this->currentFolder.$this->name.'.'.$this->format);
             return;
         }
 
@@ -227,7 +257,7 @@ class Images{
         if(!$this->upload){
             $this->show($file);
         }
-        $this->response[] = urldecode($Core->imagesWebDir.$this->currentFolder.$this->name.$this->extension);
+        $this->response[] = urldecode($Core->imagesWebDir.$this->currentFolder.$this->name.'.'.$this->format);
         return;
     }
 
@@ -238,7 +268,7 @@ class Images{
             mkdir($folder, 0755, true);
         }
 
-        $destination = $folder.$name.$this->extension;
+        $destination = $folder.$name.'.'.$this->format;
         $this->imagick->writeImage($destination);
 
         $name = $Core->db->escape($name);
@@ -248,7 +278,6 @@ class Images{
         $destination = $Core->db->escape($destination);
 
         $Core->db->query("INSERT INTO `{$Core->dbName}`.`images`(`name`, `hash`, `src`, `org`, `watermark`) VALUES('{$name}', '{$md5}', '{$destination}', '{$isOrg}', '{$watermark}')");
-        return $destination;
     }
 
     public function addWatermark(){
@@ -295,12 +324,8 @@ class Images{
         }
     }
 
-    public function getName($name = false){
+    public function getName(){
         global $Core;
-
-        if($name){
-            $this->name = $name;
-        }
 
         $name = $Core->globalfunctions->getUrl($this->name);
         $name = $Core->globalfunctions->getHref($name, 'images', 'name');
@@ -313,14 +338,14 @@ class Images{
         $this->imagick = new Imagick($file);
     }
 
-    public function convert($format = 'jpg'){
-        if(strtolower($this->imagick->getImageFormat()) != $format){
-            $this->imagick->setImageFormat($format);
+    public function convert(){
+        if(strtolower($this->imagick->getImageFormat()) != $this->format){
+            $this->imagick->setImageFormat($this->format);
         }
     }
 
     public function show($file){
-        header("Content-Type: image/jpg");
+        header("Content-Type: image/jpeg");
         echo $file;
         die;
     }
