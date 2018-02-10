@@ -121,7 +121,9 @@
             $this->sphinx->setLimits(0,(is_array($id) ? count($id) : 1),(is_array($id) ? count($id) : 1));
             $this->sphinx->setFilter('id',is_array($id) ? $id : array($id));
             
-            return $this->sphinxQuery();
+            $res = $this->sphinxQuery();
+            
+            return is_array($id) ? $res : (!empty($res['info']) ? $res['info'][$id] : array());
         }
         
         public function search($phrase='', $limit = true, $additional = false){

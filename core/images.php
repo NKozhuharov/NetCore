@@ -185,7 +185,7 @@ class Images{
         if($this->allowedSizes && !isset($this->allowedSizes[$this->type])){
             throw new Exception($Core->language->error_unallowed_action);
         }elseif($this->allowedSizes && !isset($this->allowedSizes[$this->type][$this->key])){
-            throw new Exception($Core->language->unallowed_image_size.' '.$this->type);
+            throw new Exception($Core->language->unallowed_image_size);
         }elseif($this->allowedSizes){
             $this->width  = $this->allowedSizes[$this->type][$this->key]['width'];
             $this->height = $this->allowedSizes[$this->type][$this->key]['height'];
@@ -281,6 +281,12 @@ class Images{
     }
 
     public function addWatermark(){
+        global $Core;
+
+        //check if watermark file exists
+        if(!is_file($this->watermark)){
+            throw new Exception($Core->language->error_invalid_watermark_file);
+        }
         // Open the watermark
         $watermark = new Imagick();
         $watermark->readImage($this->watermark);
