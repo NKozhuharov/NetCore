@@ -202,13 +202,13 @@ class User{
             throw new Error($Core->language->error_password_must_be_maximum.' '.$max.' '.$Core->language->symbols);
         }
         if($number && !preg_match("#[0-9]+#", $pass)){
-            throw new Error($Core->language->error_password_contain_a_number);
+            throw new Error($Core->language->error_password_must_contain_a_number);
         }
         if($caps && !preg_match("#[A-Z]+#", $pass)){
-            throw new Error($Core->language->error_password_contain_a_capital_letter);
+            throw new Error($Core->language->error_password_must_contain_a_capital_letter);
         }
         if($symbol && !preg_match("#\W+#", $pass)){
-            throw new Error($Core->language->error_password_contain_a_symbol);
+            throw new Error($Core->language->error_password_must_contain_a_symbol);
         }
         return $pass;
     }

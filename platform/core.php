@@ -2,7 +2,7 @@
 class Core{
     //PLATFORM VAIRABLES
     //system
-    public $db,$mc,$dbName,$controller,$view  = false;
+    public $db,$mc,$dbName,$controller,$view    = false;
     public $siteDir, $controllersDir, $viewsDir = false;
     public $defaultTimezone      = 'Europe/Sofia'; //supported timezones - http://php.net/manual/en/timezones.php
     public $cacheTime            = 0; //query cache time; set to -1 for recache
@@ -15,11 +15,8 @@ class Core{
     public $isBot                = false; //current script is bot
 
     //domain
-    public $siteDomain = 'https://streamservant.com';
-    public $siteName   = 'streamservant';
-
-    //core models
-    #public $globalFunctions, $language, $rewrite;
+    public $siteDomain = 'example.com';
+    public $siteName   = 'example';
 
     //rewrite override
     public $rewriteOverride  = array('' => 'index');
@@ -134,10 +131,10 @@ class Core{
 
         return true;
     }
-
+    
     public function redirect($url = '/'){
         if($this->ajax){
-            die('<script>window.location.replace("'.$url.'")</script>');
+            throw new Success('<script>window.location.replace("'.$url.'")</script>');
         }else{
             header("Location: ".$url, 1, 302);
             exit();
@@ -147,12 +144,16 @@ class Core{
 
     public function doOrDie($check = false){
         if(!$check){
-            header("Location: ".$this->pageNotFoundLocation, 1, 302);
-            exit();
+            if($this->ajax){
+                throw new Error('<script>window.location.replace("'.$this->pageNotFoundLocation.'")</script>');
+            }else{
+                header("Location: ".$this->pageNotFoundLocation, 1, 302);
+                exit();
+            }
         }
         return true;
     }
-
+    
     public function dump($var, $die = true){
         echo '<pre>';
         print_r($var);
