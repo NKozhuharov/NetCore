@@ -22,10 +22,10 @@ class ImageComparator{
         $mime = $this->mimeType($i);
 
         if($mime[2] == 'jpg'){
-            return imagecreatefromjpeg ($i);
+            return @imagecreatefromjpeg ($i);
         }
         else if ($mime[2] == 'png'){
-            return imagecreatefrompng ($i);
+            return @imagecreatefrompng ($i);
         }
         else{
             return false;
@@ -34,11 +34,15 @@ class ImageComparator{
 
     private function resizeImage($i,$source){
         /*resizes the image to a 8x8 squere and returns as image resource*/
+        $source = $this->createImage($source);
+        
+        if(empty($source)){
+            return false;
+        }
+        
         $mime = $this->mimeType($source);
 
         $t = imagecreatetruecolor(8, 8);
-
-        $source = $this->createImage($source);
 
         imagecopyresized($t, $source, 0, 0, 0, 0, 8, 8, $mime[0], $mime[1]);
 
@@ -74,8 +78,14 @@ class ImageComparator{
         if(!$i1 || !$i2){return false;}
 
         $i1 = $this->resizeImage($i1,$a);
+        if(empty($i1)){
+            return false;
+        }
         $i2 = $this->resizeImage($i2,$b);
-
+        if(empty($i2)){
+            return false;
+        }
+        
         imagefilter($i1, IMG_FILTER_GRAYSCALE);
         imagefilter($i2, IMG_FILTER_GRAYSCALE);
 

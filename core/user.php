@@ -14,7 +14,7 @@ class User{
     protected $lastLoginField        = false; //set this to record last login time
     protected $userRecoveryTableName = false; //set this to enable password recovery functions, must contain user_id(int) and token(varchar 50)
 
-    public $user                = false;
+    public $user                     = false;
 
     public function __construct($usersTableName, $userLevelTableName = false, $pagesTableName = false){
         global $Core;
@@ -44,7 +44,6 @@ class User{
         if($this->userLevelTableName){
             $this->checkAccess();
         }
-        #$this->resetSession();
     }
 
     private function setSessionKey(){

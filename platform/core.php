@@ -7,7 +7,6 @@ class Core{
     public $defaultTimezone      = 'Europe/Sofia'; //supported timezones - http://php.net/manual/en/timezones.php
     public $cacheTime            = 0; //query cache time; set to -1 for recache
     public $ajax                 = false; //file is ajax, dont show header and footer
-    public $allowedModels        = false; //do not initialize models
     public $doNotStrip           = false; //do not strip theese parameters
     public $pageNotFoundLocation = '/not-found';//moust not be numeric so the rwrite can work
     public $allowFirstPage       = false; //if allowed url like "/1" won't redirect to $pageNotFoundLocation
@@ -22,10 +21,10 @@ class Core{
     public $rewriteOverride  = array('' => 'index');
 
     //user model name
-    public $userModel = 'user';
+    public $userModel = false;
 
     //menu model name
-    public $menuModel = 'menu';
+    public $menuModel = false;
 
     //limits
     public $folderLimit = 30000;
@@ -131,7 +130,7 @@ class Core{
 
         return true;
     }
-    
+
     public function redirect($url = '/'){
         if($this->ajax){
             throw new Success('<script>window.location.replace("'.$url.'")</script>');
@@ -153,7 +152,7 @@ class Core{
         }
         return true;
     }
-    
+
     public function dump($var, $die = true){
         echo '<pre>';
         print_r($var);

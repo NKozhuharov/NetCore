@@ -1,7 +1,10 @@
 <?php
 class GlobalFunctions{
     public function catchMessage($message, $success = false){
-
+        if(stristr($message, '<script')){
+            echo $message;
+            return;
+        }
         ?>
         <script id="modal-message-wrap" type="text/javascript">
             modal.<?=$success ? 'success' : 'error'?>({message: '<?=$message?>'});
@@ -274,7 +277,7 @@ class GlobalFunctions{
         }
         echo '</ul>';
     }
-    
+
     //returns the content between 2 points of a string
     public function getBetween($content, $start, $end){
         if(!strpos($content,$start))
@@ -379,7 +382,7 @@ class GlobalFunctions{
         $bytes /= pow(1024, $pow);
         return round($bytes, $precision) . ' ' . $units[$pow];
     }
-    
+
     public function formatNumberToReadable($number){
         if($number < 1000){
             return $number;
@@ -470,26 +473,26 @@ class GlobalFunctions{
 
         return true;
     }
-    
+
     public function checkIfProcessIsRunning($processName){
         global $Core;
         if(empty($processName)){
             throw new Error($Core->language->error_provide_a_process_name);
         }
-        
+
         exec("ps ax | grep '$processName'",$res);
-        
+
         return count($res) > 2 ? true : false;
     }
-    
+
     public function getProcessInstancesCount($processName){
         global $Core;
         if(empty($processName)){
             throw new Error($Core->language->error_provide_a_process_name);
         }
-        
+
         exec("ps ax | grep '$processName'",$res);
-        
+
         return count($res) - 2;
     }
 }
