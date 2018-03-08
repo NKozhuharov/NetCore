@@ -336,6 +336,9 @@ class GlobalFunctions{
         if(empty($time)){
             return false;
         }
+        
+        $time = str_replace('T',' ',$time);
+        $time = str_replace('Z','',$time);
 
         if(stristr($time,':')){
             $time = str_replace(array(':',' '),'-',$time);
@@ -344,6 +347,11 @@ class GlobalFunctions{
         }
         $time = explode('-',$time);
         return mktime(0,0,0,$time[1],$time[2],$time[0]);
+    }
+    
+    //alias of mysqlTimeToTimestamp
+    public function formatMysqlTimeToTimestamp($time){
+        return $this->mysqlTimeToTimestamp($time);
     }
 
     //formats seconds int seconds, minutes, hours, days and months; remove comment from $s and $mo to calculate seconds and months

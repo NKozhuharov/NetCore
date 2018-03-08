@@ -586,7 +586,7 @@
 
             $q = substr($q,0,-1).') VALUES (';
             foreach($input as $k => $v){
-                $q .= ((empty($v) && !((is_numeric($v) && $v == '0'))) ? 'NULL' : "'$v'").",";
+                $q .= ((empty($v) && !((is_numeric($v) && $v == '0'))) ? 'NULL' : (is_numeric($v) ? $v : "'$v'")).",";
             }
             $q = substr($q,0,-1).')';
 
@@ -779,14 +779,14 @@
             $object = $this->getAll(false,true,false,false,$objectId);
 
             if(empty($object)){
-                throw new Exception ($Core->language->update_failed.'(class'.get_class($this).') '.$Core->language->undefined.' '.substr($this->tableName,0,-1).'!');
+                throw new Exception ($Core->language->update_failed.' (class'.get_class($this).') '.$Core->language->undefined.' '.substr($this->tableName,0,-1).'!');
             }
 
             $input = $this->prepareQueryArray($input);
             $q = '';
 
             foreach ($input as $k => $v){
-                $q .= "`$k` = ".((empty($v) && $v !== 0 && $v !== '0') ? 'NULL' : "'$v'").",";
+                $q .= "`$k` = ".((empty($v) && $v !== 0 && $v !== '0') ? 'NULL' : (is_numeric($v) ? $v : "'$v'")).",";
             }
             $q = "UPDATE `{$Core->dbName}`.`{$this->tableName}` SET ".substr($q,0,-1)." WHERE `id` = $objectId";
 
