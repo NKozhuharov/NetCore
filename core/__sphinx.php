@@ -1,12 +1,24 @@
 <?php
     class Sphinx extends Base{
         private $instance = false;
-
+        private $emptyResult = array(
+            'info' => array(),
+            'total' => 0
+        );
+        
         protected $sphinxIndexName = '';
+        protected $maxPageNumber = 10000;
 
         public function __get($var){
+            global $Core;
             if($var == 'instance' || $var == 'sphinx' || $var == 'sp'){
                 return $this->instance;
+            }
+            else if($var == 'maxResults'){
+                return $this->maxPageNumber * $Core->itemsPerPage;
+            }
+            else if($var == 'maxPage' || $var == 'maxPageNumber'){
+                return $this->maxPageNumber;
             }
         }
 
@@ -46,6 +58,11 @@
 
         public function sphinxQuery($params = '', $parse = true){
             global $Core;
+            
+            if(!empty($this->maxPageNumber) && ($this->instance->_offset + $Core->itemsPerPage) > ($this->maxPageNumber * $Core->itemsPerPage)){
+                return $this->emptyResult;
+            }
+            
             if($parse){
                 $res = $this->parseSpinxResult($this->instance->query($params,$this->sphinxIndexName));
             }
@@ -147,6 +164,7 @@
         }
         
         //WARNING: use this function for attributes ONLY!!
+        //2nd WARNING: it converts floats into doubles for some reason
         public function update($objectId,$input){
             global $Core;
 
@@ -165,25 +183,48 @@
                 throw new Exception($Core->language->error_object_id_cannot_be_empty);
             }
             
-            $object = $this->getAll(false,true,false,false,$objectId);
+            $this->sphinx->setLimits(0,1,1);
+            $this->sphinx->setFilter('id', array($objectId));
 
-            if(empty($object)){
+            $object = $this->sphinxQuery('',false);
+            
+            if(empty($object['total'])){
                 throw new Exception ($Core->language->update_failed.' (class'.get_class($this).') '.$Core->language->undefined.' '.substr($this->tableName,0,-1).'!');
             }
             
-            $keys = array();
-            $vals = array();
+            $keysPlain = array();
+            $valsPlain = array();
+            
+            $keysString = array();
+            $valsString = array();
+            
             foreach($input as $k => $v){
-                if(!isset($object[$k])){
+                if(!isset($object['attrs'][$k])){
                     throw new Exception($Core->language->error_the_field.' "'.$k.'" '.$Core->language->error_does_not_exist);
                 }
-                $keys[] = $k;
-                $vals[] = $v;
+                if($object['attrs'][$k] == 1 || $object['attrs'][$k] == 5){
+                    $keysPlain[] = $k;
+                    $valsPlain[] = $v;
+                }
+                else if($object['attrs'][$k] == 7){
+                    $keysString[] = $k;
+                    $valsString[] = $v;
+                }
             }
             
-            $res = $this->instance->UpdateAttributes($this->sphinxIndexName,$keys,array($objectId => $vals),SPH_UPDATE_STRING);
+            if(!empty($keysPlain)){
+                $res = $this->instance->UpdateAttributes($this->sphinxIndexName,$keysPlain,array($objectId => $valsPlain),SPH_UPDATE_PLAIN);
             
-            if($res){
+                if(empty($res)){
+                    throw new Exception ($Core->language->update_failed.' (class'.get_class($this).') ');
+                }
+            }
+            
+            if(!empty($keysString)){
+                $res = $this->instance->UpdateAttributes($this->sphinxIndexName,$keysString,array($objectId => $valsString),SPH_UPDATE_STRING);
+            }
+            
+            if(isset($res) && !empty($res)){
                 return parent::update($objectId,$input);
             }
             else{
@@ -192,32 +233,4 @@
             return false;
         }
     }
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
 ?>
