@@ -2,6 +2,10 @@
 class ImageComparator{
     private function mimeType($i){
         /*returns array with mime type and if its jpg or png. Returns false if it isn't jpg or png*/
+        if(!is_string($i)){
+            return false;
+        }
+        
         $mime = getimagesize($i);
         $return = array($mime[0],$mime[1]);
 
