@@ -74,9 +74,8 @@ class GlobalFunctions{
                 <div class="swiper-button-next swiper-button-white"></div>
                 <div class="swiper-button-prev swiper-button-white"></div>
             <?php } ?>
-
             <!--Close button-->
-            <i class="fa fa-window-close-o swiper-full-close"></i>
+            <i class="glyphicon glyphicon-remove-circle swiper-full-close"></i>
         </div>
         <?php
         $sw = ob_get_contents();
@@ -159,8 +158,42 @@ class GlobalFunctions{
     }
 
     //pagination function
-    public function drawPagination($resultsCount, $url, $currentPage = false, $firstLast = false, $html = array(), $firstPage = false){
+    public function drawPagination($resultsCount, $url = false, $currentPage = false, $firstLast = false, $html = array(), $firstPage = false){
         global $Core;
+        //$firstPage - show or hide page number in the url when current page = 1
+
+        //default html
+        if(!$html){
+            $html = array(
+                'ul_class'           => 'pagination',
+                'current_page_class' => 'active',
+                'default' => array(
+                    'html'  => '',
+                    'class' => ''
+                ),
+                'first' => array(
+                    'html'  => '<span>&lt;&lt;</span>',
+                    'class' => ''
+                ),
+                'prev' => array(
+                    'html'  => '&lt;',
+                    'class' => ''
+                ),
+                'last' => array(
+                    'html'  => '<span>&gt&gt</span>',
+                    'class' => ''
+                ),
+                'next' => array(
+                    'html'  => '&gt;',
+                    'class' => ''
+                )
+            );
+        }
+
+        //default url with page numper in GET parameter always shown(page=)
+        if(!$url){
+            $url = (($Core->rewrite->URL != '/' ? $Core->rewrite->URL : '').((preg_replace("~(&|\?|)(page=)(\d+|)~", "", http_build_query($_GET))) ? '?'.(preg_replace("~(&|\?|)(page=)(\d+|)~", "", http_build_query($_GET))).'&page=' : '?page='));
+        }
 
         if($resultsCount <= $Core->itemsPerPage){
             return false;
@@ -298,7 +331,7 @@ class GlobalFunctions{
         if(empty($time)){
             return false;
         }
-        
+
         $time = str_replace('T',' ',$time);
         $time = str_replace('Z','',$time);
 
@@ -310,7 +343,7 @@ class GlobalFunctions{
         $time = explode('-',$time);
         return mktime(0,0,0,$time[1],$time[2],$time[0]);
     }
-    
+
     //alias of mysqlTimeToTimestamp
     public function formatMysqlTimeToTimestamp($time){
         return $this->mysqlTimeToTimestamp($time);
@@ -464,6 +497,20 @@ class GlobalFunctions{
         exec("ps ax | grep '$processName'",$res);
 
         return count($res) - 2;
+    }
+
+    public function reArrangeRequestFiles($files){
+        $file_array = array();
+        $file_count = count($files['name']);
+        $file_keys = array_keys($files);
+
+        for ($i=0; $i<$file_count; $i++) {
+            foreach ($file_keys as $key) {
+                $file_array[$i][$key] = $files[$key][$i];
+            }
+        }
+
+        return $file_array;
     }
 }
 ?>

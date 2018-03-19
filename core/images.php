@@ -44,15 +44,13 @@ class Images{
     public $watermark      = false; //'/var/www/site/www/img/watermark.png';
 
     public function __construct(){
-       if(isset($_FILES[$this->uploadName], $_FILES[$this->uploadName]['tmp_name']) && is_array($_FILES[$this->uploadName]['tmp_name'])){
-            $count = count($_FILES[$this->uploadName]['tmp_name']);
+        global $Core;
 
-            for($i=0; $i < $count; $i++){
-                $this->files[$i]['name']     = $_FILES[$this->uploadName]['name'][$i];
-                $this->files[$i]['type']     = $_FILES[$this->uploadName]['type'][$i];
-                $this->files[$i]['size']     = $_FILES[$this->uploadName]['size'][$i];
-                $this->files[$i]['error']    = $_FILES[$this->uploadName]['error'][$i];
-                $this->files[$i]['tmp_name'] = $_FILES[$this->uploadName]['tmp_name'][$i];
+        if(isset($_FILES[$this->uploadName], $_FILES[$this->uploadName]['tmp_name'])){
+            if(is_array($_FILES[$this->uploadName]['tmp_name'])){
+                $this->files = $Core->globalfunctions->reArrangeRequestFiles($_FILES[$this->uploadName]);
+            }else{
+                $this->files = array($_FILES[$this->uploadName]);
             }
 
             foreach($this->files as $f){

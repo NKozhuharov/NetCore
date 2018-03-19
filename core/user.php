@@ -9,29 +9,29 @@ class User{
     public  $emailRequired      = true;
 
     protected $usersTableName        = false;
-    protected $userLevelTableName    = false;
+    protected $usersLevelTableName   = false;
     protected $pagesTableName        = 'pages';
     protected $lastLoginField        = false; //set this to record last login time
-    protected $userRecoveryTableName = false; //set this to enable password recovery functions, must contain user_id(int) and token(varchar 50)
+    protected $usersRecoveryTableName = false; //set this to enable password recovery functions, must contain user_id(int) and token(varchar 50)
 
-    public $user                     = false;
+    public $user                = false;
 
-    public function __construct($usersTableName, $userLevelTableName = false, $pagesTableName = false){
+    public function __construct($userTableName, $userLevelTableName = false, $pagesTableName = false){
         global $Core;
 
         if(!isset($_SERVER['REMOTE_ADDR'], $_SERVER['REQUEST_URI'])){
             throw new Exception($Core->language->error_remote_addr_or_request_uri_is_not_set);
         }
 
-        if(empty($usersTableName)){
+        if(empty($userTableName)){
             throw new Exception($Core->language->error_users_table_name_is_not_set);
         }
 
-        $this->usersTableName = $usersTableName;
+        $this->usersTableName = $userTableName;
         $this->cookieName = 'user_'.sha1($this->usersTableName);
 
         if($userLevelTableName){
-            $this->userLevelTableName = $userLevelTableName;
+            $this->usersLevelTableName = $userLevelTableName;
         }
 
         if($pagesTableName){
@@ -41,7 +41,7 @@ class User{
         $this->setSessionKey();
         $this->setUser();
 
-        if($this->userLevelTableName){
+        if($this->usersLevelTableName){
             $this->checkAccess();
         }
     }
@@ -236,10 +236,14 @@ class User{
         $un    = $Core->db->escape(trim($un));
         $email = $Core->db->escape(trim($email));
 
-        if($this->userLevelTableName && (!$levelId || !is_numeric($levelId))){
+        if($this->usersLevelTableName && (!$levelId || !is_numeric($levelId)) || !isset($this->getUserLevels()[$levelId])){
             throw new Error($Core->language->error_user_level_id_is_not_valid);
-        }elseif(empty($un) || empty($pw) || empty($rpw)){
-            throw new Error($Core->language->error_registration_data_is_not_valid);
+        }elseif(empty($un)){
+            throw new Error($Core->language->error_username_is_not_valid);
+        }elseif(empty($pw)){
+            throw new Error($Core->language->error_password_is_not_valid);
+        }elseif(empty($rpw)){
+            throw new Error($Core->language->error_repeat_password_is_not_valid);
         }elseif($Core->db->result("SELECT `id` FROM `{$Core->dbName}`.`{$this->usersTableName}` WHERE `username`='$un'")){
             throw new Error($Core->language->error_this_username_is_already_taken);
         }elseif($this->emailRequired && !filter_var($email, FILTER_VALIDATE_EMAIL)){
@@ -269,12 +273,11 @@ class User{
         $q .= ")";
 
         $Core->db->query($q);
-        return false;
+        return $Core->db->insert_id;
     }
 
     //set third parameter to check for existing password!
-    public function changePass($userId, $newPass, $repeatPass, $currentPass = false,
-    $min = 5, $max = 20, $numbers = false, $caps = false, $symbols = false){
+    public function changePass($userId, $newPass, $repeatPass, $currentPass = false, $min = 5, $max = 20, $numbers = false, $caps = false, $symbols = false){
         global $Core;
 
         if($currentPass !== false && empty($currentPass)){
@@ -314,10 +317,10 @@ class User{
         }
 
         //check for existing token
-        $token = $Core->db->result("SELECT `token` FROM `{$Core->dbName}`.`{$this->userRecoveryTableName}` WHERE `user_id` = '{$user['id']}'");
+        $token = $Core->db->result("SELECT `token` FROM `{$Core->dbName}`.`{$this->usersRecoveryTableName}` WHERE `user_id` = '{$user['id']}'");
         if(empty($token)){
             $token = md5(uniqid());
-            $Core->db->query("INSERT INTO `{$Core->dbName}`.`{$this->userRecoveryTableName}`
+            $Core->db->query("INSERT INTO `{$Core->dbName}`.`{$this->usersRecoveryTableName}`
                 (`id`,`user_id`,`token`) VALUES (NULL,{$user['id']},'$token')
             ");
         }
@@ -340,7 +343,7 @@ class User{
 
         $token = $Core->db->real_escape_string($token);
 
-        $userId = $Core->db->result("SELECT `id` FROM `{$Core->dbName}`.`{$this->userRecoveryTableName}` WHERE `token` = '$token'");
+        $userId = $Core->db->result("SELECT `id` FROM `{$Core->dbName}`.`{$this->usersRecoveryTableName}` WHERE `token` = '$token'");
         if(empty($userId)){
             throw new Error($Core->language->error_invalid_token);
         }
@@ -354,7 +357,7 @@ class User{
         SET `password` = '".$this->hashPassword($newPass)."'
         WHERE`id` = '$userId'");
 
-        $Core->db->query("DELETE FROM `{$Core->dbName}`.`{$this->userRecoveryTableName}` WHERE `token` = '$token'");
+        $Core->db->query("DELETE FROM `{$Core->dbName}`.`{$this->usersRecoveryTableName}` WHERE `token` = '$token'");
 
         throw new Success($Core->language->new_password_sent_successfully);
     }
@@ -367,19 +370,19 @@ class User{
             throw new exception($Core->languge->error_invalid_id);
         }
 
-        if($this->userLevelTableName){
+        if($this->usersLevelTableName){
             $q = "
             SELECT
                  `{$Core->dbName}`.`{$this->usersTableName}`.*
-                ,`{$Core->dbName}`.`{$this->userLevelTableName}`.`role` AS 'user_role'
-                ,`{$Core->dbName}`.`{$this->userLevelTableName}`.`level` AS 'level'
+                ,`{$Core->dbName}`.`{$this->usersLevelTableName}`.`role` AS 'user_role'
+                ,`{$Core->dbName}`.`{$this->usersLevelTableName}`.`level` AS 'level'
                 ,'true' AS 'loggedIn'
             FROM
                 `{$Core->dbName}`.`{$this->usersTableName}`
             LEFT JOIN
-                `{$Core->dbName}`.`{$this->userLevelTableName}`
+                `{$Core->dbName}`.`{$this->usersLevelTableName}`
             ON
-                `{$Core->dbName}`.`{$this->usersTableName}`.`level_id` = `{$Core->dbName}`.`{$this->userLevelTableName}`.`id`
+                `{$Core->dbName}`.`{$this->usersTableName}`.`level_id` = `{$Core->dbName}`.`{$this->usersLevelTableName}`.`id`
             WHERE
                 `{$Core->dbName}`.`{$this->usersTableName}`.`id`= '$id'";
         }
@@ -398,13 +401,13 @@ class User{
         if($Core->db->query("
             SELECT
                 `{$Core->dbName}`.`{$this->pagesTableName}`.`id`
-                ,`{$Core->dbName}`.`{$this->userLevelTableName}`.`level` AS 'level'
+                ,`{$Core->dbName}`.`{$this->usersLevelTableName}`.`level` AS 'level'
             FROM
                 `{$Core->dbName}`.`{$this->pagesTableName}`
             LEFT JOIN
-                `{$Core->dbName}`.`{$this->userLevelTableName}`
+                `{$Core->dbName}`.`{$this->usersLevelTableName}`
             ON
-                `{$Core->dbName}`.`{$this->pagesTableName}`.`level_id` = `{$Core->dbName}`.`{$this->userLevelTableName}`.`id`
+                `{$Core->dbName}`.`{$this->pagesTableName}`.`level_id` = `{$Core->dbName}`.`{$this->usersLevelTableName}`.`id`
             WHERE
                 `{$Core->dbName}`.`{$this->pagesTableName}`.`url` = '".$Core->db->escape($Core->rewrite->URL)."'"
             , 0,'fetch_assoc', $mainPage))
@@ -428,16 +431,16 @@ class User{
             $level = $this->user->level;
         }
 
-        if($this->userLevelTableName){
+        if($this->usersLevelTableName){
             $q  = " SELECT ";
             $q .= " `{$Core->dbName}`.`{$this->pagesTableName}`.*, ";
-            $q .= " `{$Core->dbName}`.`{$this->userLevelTableName}`.`level` AS 'level', ";
+            $q .= " `{$Core->dbName}`.`{$this->usersLevelTableName}`.`level` AS 'level', ";
             $q .= " IF(`{$Core->dbName}`.`{$this->pagesTableName}`.`id` = '{$this->pageId}', true, false) AS 'is_current'";
             $q .= " FROM `{$Core->dbName}`.`{$this->pagesTableName}` ";
-            $q .= " LEFT JOIN  `{$Core->dbName}`.`{$this->userLevelTableName}` ";
-            $q .= " ON `{$Core->dbName}`.`{$this->userLevelTableName}`.`id` = `{$Core->dbName}`.`{$this->pagesTableName}`.`level_id` ";
+            $q .= " LEFT JOIN  `{$Core->dbName}`.`{$this->usersLevelTableName}` ";
+            $q .= " ON `{$Core->dbName}`.`{$this->usersLevelTableName}`.`id` = `{$Core->dbName}`.`{$this->pagesTableName}`.`level_id` ";
             $q .= " WHERE `level_id`".($level === 0 ? " = " : " >= ");
-            $q .= " (SELECT `id` FROM `{$Core->dbName}`.`{$this->userLevelTableName}` WHERE `level` = $level) ";
+            $q .= " (SELECT `id` FROM `{$Core->dbName}`.`{$this->usersLevelTableName}` WHERE `level` = $level) ";
             $q .= " AND `name` IS NOT NULL AND `name` != '' ";
             $q .= " ORDER BY `{$Core->dbName}`.`{$this->pagesTableName}`.`order` ASC, `{$Core->dbName}`.`{$this->pagesTableName}`.`name` ASC";
         }else{
@@ -448,6 +451,13 @@ class User{
             return $pages;
         }
         return false;
+    }
+
+    public function getUserLevels(){
+        global $Core;
+
+        $Core->db->query("SELECT * FROM `{$Core->dbName}`.`{$this->usersLevelTableName}` WHERE `id` != '1'", 0, 'fillArray', $levels, 'id');
+        return $levels;
     }
 }
 ?>
