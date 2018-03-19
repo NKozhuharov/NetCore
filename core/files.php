@@ -1,24 +1,49 @@
 <?php
 class Files extends Base{
-    private $filePath = false;
+    private $filePath   = false;
+    public  $tableName  = 'files';
 
     public function __construct(){
         global $Core;
 
-        $this->filePath         = $Core->filesDir;
-        $this->tableName        = 'files';
-        $this->searchByField    = 'name';
-        $this->returnPhraseOnly = false;
+        $this->filePath = $Core->filesDir;
     }
 
     public function getByHash($hash){
         global $Core;
-        $hash = $Core->db->real_escape_string($hash);
+
+        $hash = $Core->db->escape($hash);
         if(empty($hash)){
             throw new exception ('Invalid hash!');
         }
 
         $Core->db->query("SELECT * FROM `{$Core->dbName}`.`{$this->tableName}` WHERE `hash`='$hash'",$Core->cacheTime,'fetch_assoc',$result);
+        if(empty($result)){
+            throw new exception('File not found!');
+        }
+        return $result;
+    }
+
+    public function getBySrc($src){
+        global $Core;
+
+        $src = $Core->db->escape($src);
+
+        if(!is_string($src) || empty($src)){
+            throw new exception ('Invalid file source!');
+        }
+
+        $src   = explode('/', $src);
+        $count = count($src);
+
+        if($count < 2){
+            throw new exception('Invalid file source!');
+        }
+
+        $hashedName = $src[$count-1];
+        $dir        = $src[$count-2];
+
+        $Core->db->query("SELECT * FROM `{$Core->dbName}`.`{$this->tableName}` WHERE `dir` = '$dir' AND `hashed_name`='$hashedName'",$Core->cacheTime,'fetch_assoc',$result);
         if(empty($result)){
             throw new exception('File not found!');
         }
@@ -48,20 +73,26 @@ class Files extends Base{
         return $this->insertFile($currentDirId + 1,$file);
     }
 
-    public function addFile($noDb = false){
+    public function addFiles($files, $insertInDb = true){
         global $Core;
 
-        if(!empty($_FILES)){
-            $file = $_FILES['file'];
+        if(is_array($files['tmp_name'])){
+            $files = $Core->globalfunctions->reArrangeRequestFiles($files);
+        }else{
+            $files = array($files);
+        }
 
-            if($file['error']){
+        foreach($files as $file){
+            if(empty($file)){
+                throw new exception('Please provide a valid file!');
+            }elseif($file['error']){
                 throw new exception($this->codeToMessage($file['error']));
             }
 
             $file['hash'] = $this->getFileHash($file);
             $file['hashed_name'] = $this->getHashedName($file);
 
-            $currentDirId = $this->insertFile(0,$file);
+            $currentDirId = $this->insertFile(1,$file);
 
             if(is_file($this->filePath.$currentDirId.'/'.$file['hashed_name'])){
                 $inputArr = array(
@@ -72,22 +103,20 @@ class Files extends Base{
                     'hash' => $file['hash'],
                     'size' => $file['size']
                 );
-                if(!$noDb){
-                    $this->add($inputArr);
 
-                    return $Core->siteDomain.'/file/'.$file['hash'];
-                }
-                else{
-                    return $inputArr;
+                if($insertInDb){
+                    $this->add($inputArr);
+                    $return[] = $Core->siteDomain.$Core->filesWebDir.$file['hash'];
+                }else{
+                    $return[] = $inputArr;
                 }
             }
             else{
                 throw new exception('Error occured! Please try again and if the problem persits contact support!');
             }
         }
-        else{
-            throw new exception('Please provide a valid file!');
-        }
+
+        return $return;
     }
 
     public function insertFileIntoDb($inputArr){
@@ -98,7 +127,7 @@ class Files extends Base{
 
         $this->add($inputArr);
 
-        return $Core->siteDomain.'/file/'.$inputArr['hash'];
+        return $Core->siteDomain.$Core->filesWebDir.$inputArr['hash'];
     }
 
     private function codeToMessage($code){
@@ -162,6 +191,44 @@ class Files extends Base{
             return 'music';
         }
         return 'unknown';
+    }
+
+    public function download($fileTo){
+        global $Core;
+
+        if(is_numeric($fileTo) && $file = $this->getById($fileTo)){
+            $fileTo = $Core->filesDir.$file['dir'].'/'.$file['hashed_name'];
+        }else{
+            $file = $this->getBySrc($fileTo);
+        }
+
+        if(is_file($fileTo)){
+            header("Content-Type: ".mime_content_type($fileTo));
+            header("Content-Length:".filesize($fileTo));
+            header('Content-Disposition: attachment;  filename="'.$file['name'].'"');
+            readfile($fileTo);
+            die;
+        }else{
+            throw new exception('File not found!');
+        }
+    }
+
+    public function deleteFile($fileTo){
+        global $Core;
+
+        if(is_numeric($fileTo) && $file = $this->getById($fileTo)){
+            $fileTo = $Core->filesDir.$file['dir'].'/'.$file['hashed_name'];
+        }else{
+            $file = $this->getBySrc($fileTo);
+        }
+
+        if(!is_file($fileTo)){
+            throw new exception('File not found!');
+        }
+
+        unlink($fileTo);
+        $this->delete($file['id']);
+        return true;
     }
 }
 ?>
