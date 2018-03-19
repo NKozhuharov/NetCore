@@ -1,43 +1,5 @@
 <?php
 class GlobalFunctions{
-    public function catchMessage($message, $success = false){
-        if(stristr($message, '<script')){
-            echo $message;
-            return;
-        }
-        ?>
-        <script id="modal-message-wrap" type="text/javascript">
-            modal.<?=$success ? 'success' : 'error'?>({message: '<?=$message?>'});
-            $('#modal-message-wrap').remove()
-        </script>
-        <?php return;
-        // depricated
-        /*
-            ?>
-            <div class="modal-message-wrap">
-                <div id="modal-message" class="modal modal-message">
-                    <?php if($success){; ?>
-                        <div class="modal-content">
-                            <i class="zmdi zmdi-check"></i>
-                            <h2>Success</h2>
-                            <p><?php echo $message; ?></p>
-                            <a href="#!" class="modal-action blue modal-close waves-effect waves-green btn-flat">Close</a>
-                        </div>
-                    <?php }else{; ?>
-                        <div class="modal-content">
-                            <i class="zmdi zmdi-close"></i>
-                            <h2>Error</h2>
-                            <p><?php echo $message; ?></p>
-                            <a href="#!" class="modal-action blue modal-close waves-effect waves-green btn-flat">Close</a>
-                        </div>
-                    <?php }; ?>
-                </div>
-                <script>$('#modal-message').modal({complete: function(){$(".modal-message-wrap").remove();}}).modal('open');</script>
-            </div>
-            <?php
-        */
-    }
-
     function curl($url){
         $ch = curl_init();
         curl_setopt($ch, CURLOPT_URL, $url);

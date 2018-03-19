@@ -309,20 +309,22 @@
                     throw new Exception ($Core->language->error_this_object_does_not_have_a_parent);
                 }
 
-                $parentId = intval($parentId);
-                if(empty($parentId)){
+                if(!is_numeric($parentId)){
                     throw new Exception ($Core->language->error_parent_ID_cannot_be_empty);
                 }
+
+                $parentId = intval($parentId);
                 $q .= " ".(stristr($q,'WHERE') ? "AND" : "WHERE")." `{$this->parentField}` = $parentId";
             }
             else if($id){
                 if(is_array($id)){
                     $in = '';
                     foreach($id as $k => $v){
-                        $v = intval($v);
-                        if(empty($v)){
+                        if(!is_numeric($v)){
                             throw new Exception($Core->language->error_id_array_must_be_only_numerics);
                         }
+
+                        $v = intval($v);
                         $in .= "$v,";
                     }
                     $in = substr($in,0,-1);
@@ -404,7 +406,7 @@
         //now support an array of ints
         public function getById($id, $language = false, $noTranslation = false){
             $result = $this->getAll($language,$noTranslation,false,false,$id);
-            if(is_array($result) && count($result) == 1){
+            if(!is_array($id) && is_array($result)){
                 $result = current($result);
             }
             return $result;
@@ -434,11 +436,7 @@
 
         //gets all rows with the provided parent id
         public function getByParentId($parentId, $language = false, $noTranslation = false, $limit = false){
-            $result = $this->getAll($language,$noTranslation,$limit,$parentId);
-            if(is_array($result) && count($result) == 1){
-                $result = current($result);
-            }
-            return $result;
+            return $this->getAll($language,$noTranslation,$limit,$parentId);
         }
         //END OUTPUT FUNCTIONS
 
@@ -617,19 +615,35 @@
             return $this->add($input,$noAutocomplete);
         }
 
-        //deletes a row from the table and the row in the autocomplete table
+        //deletes rows from the table and the rows in the autocomplete table
         public function delete($id){
             global $Core;
 
-            $id = intval($id);
             if(empty($id)){
                 throw new Exception ($Core->language->error_id_cannot_be_empty);
             }
 
+            if(!is_array($id)){
+                $where = ' = '.intval($id);
+            }else{
+                $in = '';
+                foreach($id as $k => $v){
+                    if(!is_numeric($v)){
+                        throw new Exception($Core->language->error_id_array_must_be_only_numerics);
+                    }
+
+                    $v = intval($v);
+                    $in .= "$v,";
+                }
+                $in = substr($in,0,-1);
+                $where = ' IN('.$in.')';
+                unset($in);
+            }
+
             try{
-                $Core->db->query("DELETE FROM `{$Core->dbName}`.`{$this->tableName}` WHERE `id` = $id");
+                $Core->db->query("DELETE FROM `{$Core->dbName}`.`{$this->tableName}` WHERE `id` $where");
                 if($this->autocompleteObjectId > 0){
-                    $Core->db->query("DELETE FROM `{$Core->dbName}`.`autocomplete` WHERE `type` = {$this->autocompleteObjectId} AND `object_id` = $id");
+                    $Core->db->query("DELETE FROM `{$Core->dbName}`.`autocomplete` WHERE `type` = {$this->autocompleteObjectId} AND `object_id` $where");
                 }
             }
             catch(Exception $ex){
@@ -644,6 +658,7 @@
                     throw new Exception($ex->getMessage());
                 }
             }
+            unset($where);
             return true;
         }
 
@@ -779,7 +794,7 @@
             $object = $this->getAll(false,true,false,false,$objectId);
 
             if(empty($object)){
-                throw new Exception ($Core->language->update_failed.' (class'.get_class($this).') '.$Core->language->undefined.' '.substr($this->tableName,0,-1).'!');
+                throw new Exception ($Core->language->update_failed.'(class'.get_class($this).') '.$Core->language->undefined.' '.substr($this->tableName,0,-1).'!');
             }
 
             $input = $this->prepareQueryArray($input);
