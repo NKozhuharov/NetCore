@@ -436,6 +436,9 @@
 
         //gets all rows with the provided parent id
         public function getByParentId($parentId, $language = false, $noTranslation = false, $limit = false){
+            if(empty($parentId)){
+                return array();
+            }
             return $this->getAll($language,$noTranslation,$limit,$parentId);
         }
         //END OUTPUT FUNCTIONS
@@ -584,7 +587,7 @@
 
             $q = substr($q,0,-1).') VALUES (';
             foreach($input as $k => $v){
-                $q .= ((empty($v) && !((is_numeric($v) && $v == '0'))) ? 'NULL' : (is_numeric($v) ? $v : "'$v'")).",";
+                $q .= ((empty($v) && !((is_numeric($v) && $v == '0'))) ? 'NULL' : "'$v'").",";
             }
             $q = substr($q,0,-1).')';
 
@@ -801,7 +804,7 @@
             $q = '';
 
             foreach ($input as $k => $v){
-                $q .= "`$k` = ".((empty($v) && $v !== 0 && $v !== '0') ? 'NULL' : (is_numeric($v) ? $v : "'$v'")).",";
+                $q .= "`$k` = ".((empty($v) && $v !== 0 && $v !== '0') ? 'NULL' : "'$v'").",";
             }
             $q = "UPDATE `{$Core->dbName}`.`{$this->tableName}` SET ".substr($q,0,-1)." WHERE `id` = $objectId";
 

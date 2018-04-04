@@ -402,28 +402,54 @@ class GlobalFunctions{
     //put this in the header
     public function insertMeta(){
         global $Core;
-        echo '<title>'.$Core->siteName.($Core->meta['title'] ? htmlspecialchars($Core->meta['title'], ENT_QUOTES, 'UTF-8') : '').'</title>';
+
+        echo '<title>'.($Core->meta['title'] ? htmlspecialchars($Core->meta['title'], ENT_QUOTES, 'UTF-8') : $Core->siteName).'</title>';
         echo '<meta charset="UTF-8"/>';
-        echo '<meta name="viewport" content="width=device-width, initial-scale=1"/>';
-        echo '<meta name="keywords" content="'.(htmlspecialchars(($Core->siteName.', '.$Core->siteDomain.$Core->meta['keywords']), ENT_QUOTES, 'UTF-8')).'"/>';
+        echo '<meta name="viewport" content="height=device-height, width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=0" />';
+        echo '<meta name="apple-mobile-web-app-capable" content="yes" />';
+        echo '<meta name="HandheldFriendly" content="true"/>';
+        echo '<meta name="robots" content="INDEX,FOLLOW" />';
+
+        echo '<meta name="keywords" content="'.($Core->meta['keywords'] ? htmlspecialchars(($Core->meta['keywords']), ENT_QUOTES, 'UTF-8') : $Core->siteName).'"/>';
 
         if($Core->meta['description']){
-            echo '<meta name="description" content="'.htmlspecialchars($Core->meta['description'], ENT_QUOTES, 'UTF-8').'"/>';
+            echo '<meta name="description" content="'.(htmlspecialchars($Core->meta['description'], ENT_QUOTES, 'UTF-8')).'"/>';
         }
 
         echo '<meta property="og:type" content="'.($Core->meta['og_type'] ? $Core->meta['og_type'] : 'website').'"/>';
-        echo '<meta property="og:url" content="'.(htmlspecialchars(($Core->meta['og_url'] ? $Core->meta['og_url'] : $Core->siteProtocol.'://'.$Core->siteDomain.$_SERVER['REQUEST_URI']), ENT_QUOTES, 'UTF-8')).'" />';
+        echo '<meta property="og:url" content="'.(htmlspecialchars(($Core->meta['og_url'] ? $Core->meta['og_url'] : $Core->siteDomain.($_SERVER['REQUEST_URI'] != '/' ? $_SERVER['REQUEST_URI'] : '')), ENT_QUOTES, 'UTF-8')).'" />';
 
         if($Core->meta['og_title'] || $Core->meta['title']){
-            echo '<meta property="og:title" content="'.$Core->siteName.(htmlspecialchars(($Core->meta['og_title'] ? $Core->meta['og_title'] : $Core->meta['title']), ENT_QUOTES, 'UTF-8')).'" />';
+            echo '<meta property="og:title" content="'.(htmlspecialchars(($Core->meta['og_title'] ? $Core->meta['og_title'] : ($Core->meta['title'] ? $Core->meta['title'] : $Core->siteName)), ENT_QUOTES, 'UTF-8')).'" />';
         }
+
         if($Core->meta['og_description'] || $Core->meta['description']){
             echo '<meta property="og:description" content="'.(htmlspecialchars(($Core->meta['og_description'] ? $Core->meta['og_description'] : $Core->meta['description']), ENT_QUOTES, 'UTF-8')).'" />';
         }
 
+        if(!empty($Core->meta['image'])){
+            echo '<meta property="image" content="'.$Core->siteDomain.(htmlspecialchars($Core->meta['image'], ENT_QUOTES, 'UTF-8')).'"/>';
+            @list($width, $height) = getimagesize($Core->siteDomain.$Core->meta['image']);
+            if(isset($width) && !empty($width)){
+                echo '<meta property="image:width" content="'.$width.'"/>';
+            }
+            if(isset($height) && !empty($height)){
+                echo '<meta property="image:height" content="'.$height.'"/>';
+            }
+        }
+
         if(!empty($Core->meta['og_image'])){
-            echo '<meta property="og:image" content="'.(htmlspecialchars($Core->meta['og_image'], ENT_QUOTES, 'UTF-8')).'"/>';
-            @list($width, $height) = getimagesize($Core->meta['og_image']);
+            echo '<meta property="og:image" content="'.$Core->siteDomain.(htmlspecialchars($Core->meta['og_image'], ENT_QUOTES, 'UTF-8')).'"/>';
+            @list($width, $height) = getimagesize($Core->siteDomain.$Core->meta['og_image']);
+            if(isset($width) && !empty($width)){
+                echo '<meta property="og:image:width" content="'.$width.'"/>';
+            }
+            if(isset($height) && !empty($height)){
+                echo '<meta property="og:image:height" content="'.$height.'"/>';
+            }
+        }elseif(!empty($Core->meta['image'])){
+            echo '<meta property="og:image" content="'.$Core->siteDomain.(htmlspecialchars($Core->meta['image'], ENT_QUOTES, 'UTF-8')).'"/>';
+            @list($width, $height) = getimagesize($Core->siteDomain.$Core->meta['image']);
             if(isset($width) && !empty($width)){
                 echo '<meta property="og:image:width" content="'.$width.'"/>';
             }
