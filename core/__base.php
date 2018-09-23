@@ -617,7 +617,7 @@
 
             $q = substr($q,0,-1).') VALUES (';
             foreach($input as $k => $v){
-                $q .= ((empty($v) && !((is_numeric($v) && $v == '0'))) ? 'NULL' : "'$v'").",";
+                $q .= ((empty($v) && !((is_numeric($v) && $v == '0'))) ? 'NULL' : (is_numeric($v) ? $v : "'$v'")).",";
             }
             $q = substr($q,0,-1).')';
 
@@ -845,7 +845,7 @@
             $q = '';
 
             foreach ($input as $k => $v){
-                $q .= "`$k` = ".((empty($v) && $v !== 0 && $v !== '0') ? 'NULL' : "'$v'").",";
+                $q .= "`$k` = ".((empty($v) && $v !== 0 && $v !== '0') ? 'NULL' : (is_numeric($v) ? $v : "'$v'")).",";
             }
             $q = "UPDATE `{$Core->dbName}`.`{$this->tableName}` SET ".substr($q,0,-1)." WHERE `$updateBy` = $objectId";
 
