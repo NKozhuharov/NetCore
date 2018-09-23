@@ -43,6 +43,11 @@ class Images{
     public $hasWatermark   = 0;
     public $watermark      = false; //'/var/www/site/www/img/watermark.png';
 
+    private function _404(){
+        header("404 Not Found",1,404);
+        exit;
+    }
+    
     public function __construct(){
         global $Core;
 
@@ -55,6 +60,7 @@ class Images{
 
             foreach($this->files as $f){
                 $this->currentFile = $f;
+                
                 $this->checks();
                 $this->setImagick($this->file);
                 $this->convert();
@@ -62,7 +68,6 @@ class Images{
                 $this->processOriginal();
                 $this->processResized();
             }
-
 
             if(count($this->response) == 1){
                 if($this->showResponse){
@@ -143,7 +148,7 @@ class Images{
 
             if(!is_file($this->file)){
                 //unexisting file
-                $Core->doOrDie();
+                $this->_404();
             }
         }elseif(preg_match("~^/images/(fixed)/([\d]+-[\d]+)/([\d]+)/(.*)~",$_SERVER['REQUEST_URI'] ,$m)){
             $this->type          = $m[1];
@@ -162,7 +167,7 @@ class Images{
 
             if(!is_file($this->file)){
                 //unexisting file
-                $Core->doOrDie();
+                $this->_404();
             }
         }elseif(preg_match("~^/images/(org)/([\d]+)/(.*)~",$_SERVER['REQUEST_URI'] ,$m)){
             $this->type          = 'org';
@@ -173,11 +178,11 @@ class Images{
 
             if(!is_file($this->file)){
                 //unexisting file
-                $Core->doOrDie();
+                $this->_404();
             }
         }else{
             //unexisting file
-            $Core->doOrDie();
+            $this->_404();
         }
 
         if($this->allowedSizes && !isset($this->allowedSizes[$this->type])){
@@ -204,7 +209,7 @@ class Images{
             }else{
                 $this->hasWatermark = 0;
             }
-            $this->getName();
+            $this->name = $Core->globalfunctions->getHref($this->name, 'images', 'name');
 
             //keep original witout watermark
             $this->insert($Core->imagesStorage.$this->folderNumber.'/', $this->name, $this->orgMd5, 1, $this->hasWatermark);
@@ -261,7 +266,6 @@ class Images{
 
     public function insert($folder, $name, $md5, $isOrg = NULL, $watermark = 0){
         global $Core;
-
         if(!is_dir($folder)){
             mkdir($folder, 0755, true);
         }
@@ -326,16 +330,6 @@ class Images{
                 $this->imagick->cropImage($this->width, $this->height, ceil(($nw-$this->width) /2 ),0);
             }
         }
-    }
-
-    public function getName(){
-        global $Core;
-
-        $name = $Core->globalfunctions->getUrl($this->name);
-        $name = $Core->globalfunctions->getHref($name, 'images', 'name');
-
-        $this->name = $name;
-        return $name;
     }
 
     public function setImagick($file){

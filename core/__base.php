@@ -13,6 +13,7 @@
         public $orderType = 'ASC'; //default order type is asc
         public $additionalOrdering = false; //more ordering
         public $returnTimestamps = false; //use this if you need your GetWhatever function to return you a UNIX_TIMESTAMP of the timestamp fields as well
+        public $allowFieldAdded  = false; //allow table field `added` to be changed
 
         protected $translationFields = array(); //fields in the table, which has translations in the {table}_lang
         protected $explodeFields = array(); //fields in the table which are comma separated
@@ -361,7 +362,6 @@
             }
 
             $Core->db->query($q,$Core->cacheTime,'fillArray',$result);
-
             if(empty($result)){
                 return false;
             }
@@ -434,6 +434,38 @@
             return $res['ct'];
         }
 
+        public function getByField($input,$value=false){
+            global $Core;
+
+            if(!is_array($input) && $value===false){
+                throw new Exception("Invalid params. Input param1 must be a string(field name) if param2 is set or an array(field => value, field2 => value2) if param2=false");
+            }
+            if(is_array($input) && $value!==false){
+                throw new Exception("Invalid params. Input param1 must be a string(field name) if param2 is set or an array(field => value, field2 => value2) if param2=false");
+            }
+
+            if(!is_array($input) && $value!==false){
+                $input=array($input => $value);
+                $value=false;
+            }
+
+            $fields=$this->getTableFields();
+            foreach($input as $field => $value){
+                if(!isset($fields[$field])){
+                    throw new Exception("Unknown column '".$field."' passed.");
+                }
+                if(is_null($value)){
+                    $v=' IS NULL';
+                }else{
+                    $v="='".$Core->db->escape($value)."'";
+                }
+                $where[]="`".$Core->db->escape($field)."`".$v;
+            }
+
+            $Core->db->query("SELECT * FROM `{$this->tableName}` WHERE ".implode(' AND ',$where),0,'simpleArray',$return);
+            return $return;
+        }
+
         //gets all rows with the provided parent id
         public function getByParentId($parentId, $language = false, $noTranslation = false, $limit = false){
             if(empty($parentId)){
@@ -450,18 +482,14 @@
             if(empty($input) || !is_array($input)){
                 throw new Exception ($Core->language->error_input_must_be_a_non_empty_array);
             }
-
-            if(empty($this->tableFields)){
-                $this->getTableInfo();
-            }
-            $allowedFields = $this->tableFields;
+            $allowedFields = $this->getTableFields();
             $temp = array();
 
             $parentFunction = debug_backtrace()[1]['function'];
             if((stristr($parentFunction,'add') || $parentFunction == 'insert')){
                 $requiredBuffer = $this->requiredFields;
             }
-            else {
+            else{
                 $requiredBuffer = array();
                 if(stristr($parentFunction,'translate')){
                     $allowedFields = $this->translationFields;
@@ -469,7 +497,7 @@
             }
 
             foreach ($input as $k => $v){
-                if($k === 'added'){
+                if($k === 'added' && !$this->allowFieldAdded){
                     throw new Exception ($Core->language->field_added_is_not_allowed);
                 }
                 if($k === 'id'){
@@ -575,12 +603,14 @@
 
         //general insert funciton, input is array key => value eq column_name => value
         //if $noAutocomplete is set to true, it will not insert anything into the autocomplete table
-        public function add($input = false, $noAutocomplete = false){
+        //$ignore= bool Insert Ignore
+
+        public function add($input = false, $noAutocomplete = false, $ignore=false){
             global $Core;
 
             $input = $this->prepareQueryArray($input);
 
-            $q = "INSERT INTO `{$Core->dbName}`.`{$this->tableName}` (";
+            $q = "INSERT ".($ignore ? 'IGNORE' : '')." INTO `{$Core->dbName}`.`{$this->tableName}` (";
             foreach($input as $k => $v){
                 $q .= "`$k`,";
             }
@@ -615,11 +645,16 @@
 
         //alias of the add function
         public function insert($input, $noAutocomplete = false){
-            return $this->add($input,$noAutocomplete);
+            return $this->add($input, $noAutocomplete);
         }
-
+        
+        //alias of the add function with ignore parameter set to true
+        public function insertIgnore($input=false, $noAutocomplete=false){
+            return $this->add($input, $noAutocomplete, true);
+        }
+        
         //deletes rows from the table and the rows in the autocomplete table
-        public function delete($id){
+        public function delete($id, $additional = false){
             global $Core;
 
             if(empty($id)){
@@ -643,6 +678,10 @@
                 unset($in);
             }
 
+            if($additional){
+                $where .= ' AND '.$additional;
+            }
+
             try{
                 $Core->db->query("DELETE FROM `{$Core->dbName}`.`{$this->tableName}` WHERE `id` $where");
                 if($this->autocompleteObjectId > 0){
@@ -662,7 +701,7 @@
                 }
             }
             unset($where);
-            return true;
+            return mysqli_affected_rows($Core->db->insert);
         }
 
         public function deleteByParentId($id){
@@ -726,7 +765,7 @@
             $object = $this->getAll(false,true,false,false,$objectId);
 
             if(empty($object)){
-                throw new Exception ($Core->language->update_failed.'(class'.get_class($this).') '.$Core->language->undefined.' '.substr($this->tableName,0,-1).'!');
+                throw new Exception ($Core->language->update_failed.'(class'.get_class($this).') '.$Core->language->undefined.' '.$this->tableName.'!');
             }
             unset($object);
 
@@ -776,8 +815,7 @@
             return true;
         }
 
-        //this functions updates the database row $objectId with the values from $input
-        public function update($objectId,$input){
+        private function baseUpdate($objectId, $input, $updateBy = 'id'){
             global $Core;
 
             if(!is_numeric($objectId)){
@@ -794,11 +832,14 @@
             if(empty($objectId)){
                 throw new Exception($Core->language->error_object_id_cannot_be_empty);
             }
+
+            /*
             $object = $this->getAll(false,true,false,false,$objectId);
 
             if(empty($object)){
-                throw new Exception ($Core->language->update_failed.'(class'.get_class($this).') '.$Core->language->undefined.' '.substr($this->tableName,0,-1).'!');
+                throw new Exception ($Core->language->update_failed.'(class'.get_class($this).') '.$Core->language->undefined.' '.$this->tableName.'!');
             }
+            */
 
             $input = $this->prepareQueryArray($input);
             $q = '';
@@ -806,7 +847,7 @@
             foreach ($input as $k => $v){
                 $q .= "`$k` = ".((empty($v) && $v !== 0 && $v !== '0') ? 'NULL' : "'$v'").",";
             }
-            $q = "UPDATE `{$Core->dbName}`.`{$this->tableName}` SET ".substr($q,0,-1)." WHERE `id` = $objectId";
+            $q = "UPDATE `{$Core->dbName}`.`{$this->tableName}` SET ".substr($q,0,-1)." WHERE `$updateBy` = $objectId";
 
             if($this->autocompleteObjectId > 0){
                 $acField = $this->formAutocompleteField($input);
@@ -826,8 +867,25 @@
             catch(Exception $ex){
                 $this->handleBuilderException($ex);
             }
+
             return true;
         }
+
+        //this functions updates the database row $objectId with the values from $input
+        public function update($objectId,$input){
+            return $this->baseUpdate($objectId,$input);
+        }
+
+        //this functions updates the database parent field with the values from $input
+        public function updateByParentId($objectId,$input){
+            if(empty($this->parentField)){
+                throw new Exception($Core->language->error_you_must_set_a_parent_field_to_update_by_parent_id);
+            }
+
+            return $this->baseUpdate($objectId,$input,$this->parentField);
+        }
+
+
         //END INPUT FUNCTIONS
 
         //TEMPLATE FUNCTIONS
@@ -933,6 +991,18 @@
                 $m = str_replace('Mysql Error: ','',$m);
                 $m = str_replace(" in 'field list'",'',$m);
                 throw new Exception ("$m!");
+            }
+            else if(stristr($m,"Deadlock found when trying to get lock") && $Core->debugMysql){
+                $Core->db->query("SELECT * FROM `information_schema`.`PROCESSLIST` WHERE `INFO` IS NOT NULL",0,'simpleArray',$processes);
+                foreach($processes as $k => $proc){
+                    $processes[$k] = implode('|',$proc);
+                }
+
+                $processes = implode(PHP_EOL,$processes);
+
+                echo "Queries running: ".PHP_EOL.$processes;
+
+                throw new Exception("Deadlock found in query \" {$query} \"!".PHP_EOL);
             }
             else{
                 throw new Exception($m);

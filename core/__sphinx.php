@@ -1,4 +1,5 @@
 <?php
+    //when you use this class, always use parent::__construct() to initialize sphinx
     class Sphinx extends Base{
         private $instance = false;
         private $emptyResult = array(
@@ -22,7 +23,6 @@
             }
         }
 
-        //when you use this function, always use parent::__construct() to initialize sphinx
         public function __construct($indexName){
             global $Core;
 
@@ -55,6 +55,11 @@
                 $this->instance->setSortMode(SPH_SORT_ATTR_DESC,$this->orderByField);
             }
         }
+        
+        public function setDefaultLimits(){
+            global $Core;
+            $this->instance->setLimits((($Core->rewrite->currentPage - 1) * $Core->itemsPerPage), $Core->itemsPerPage, ($Core->rewrite->currentPage * $Core->itemsPerPage));
+        }
 
         public function sphinxQuery($params = '', $parse = true){
             global $Core;
@@ -69,8 +74,20 @@
             else{
                 $res = $this->instance->query($params,$this->sphinxIndexName);
             }
-
-            $this->instance->setLimits((($Core->rewrite->currentPage - 1) * $Core->itemsPerPage), $Core->itemsPerPage, ($Core->rewrite->currentPage * $Core->itemsPerPage));
+            
+            if($res['total'] === NULL){
+                if(!empty($this->instance->_error)){
+                    throw new Error ("Sphinx Error: ".$this->instance->_error);
+                }
+                else {
+                    throw new Error("Sphinx client offline! Contact support!");
+                }
+            }
+            
+            /**
+            *   Reset to default settings after the query
+            */
+            $this->setDefaultLimits();
             $this->instance->ResetFilters();
             $this->instance->ResetGroupBy();
             return $res;
@@ -152,6 +169,9 @@
             else if(is_numeric($limit)){
                 $this->sphinx->setLimits(0,$limit,$limit);
             }
+            else if($limit === true){
+                $this->setDefaultLimits();
+            }
 
             if(!empty($phrase)){
                 $phrase = '*'.$this->sphinx->escapeString($phrase).'*';
@@ -165,6 +185,8 @@
         
         //WARNING: use this function for attributes ONLY!!
         //2nd WARNING: it converts floats into doubles for some reason
+        //it will update Sphinx index first, then the MySQL table;
+        //remember to set $this->tableName to use the function!
         public function update($objectId,$input){
             global $Core;
 
@@ -181,6 +203,10 @@
             $objectId = intval($objectId);
             if(empty($objectId)){
                 throw new Exception($Core->language->error_object_id_cannot_be_empty);
+            }
+            
+            if(empty($this->tableName)){
+                throw new Exception($Core->language->error_set_a_table_name_first);
             }
             
             $this->sphinx->setLimits(0,1,1);
@@ -231,6 +257,10 @@
                 throw new Exception ($Core->language->update_failed.' (class'.get_class($this).') ');
             }
             return false;
+        }
+        
+        public function getEmptySphinxResult(){
+            return $this->emptyResult;
         }
     }
 ?>

@@ -158,10 +158,26 @@ class GlobalFunctions{
     }
 
     //pagination function
-    public function drawPagination($resultsCount, $url = false, $currentPage = false, $firstLast = false, $html = array(), $firstPage = false){
+    //$resultsCount - total matches
+    //$url - url for the links
+    //$currentPage - current page number
+    //$showFirstLast - show first and last page
+    //$html - html for the pagination
+    //$showFirstPage- show or hide page number in the url when current page = 1
+    public function drawPagination($resultsCount, $url = false, $currentPage = false, $showFirstLast = false, $html = array(), $showFirstPage= false){
         global $Core;
-        //$firstPage - show or hide page number in the url when current page = 1
-
+        //get current page from the rewrite class
+        if(!$currentPage){
+            $currentPage = $Core->rewrite->currentPage;
+        }
+        //invalid page number
+        if($currentPage <= 0){
+            $Core->doOrDie();
+        }
+        //no need of pagination
+        if($resultsCount <= $Core->itemsPerPage){
+            return false;
+        }
         //default html
         if(!$html){
             $html = array(
@@ -189,20 +205,9 @@ class GlobalFunctions{
                 )
             );
         }
-
-        //default url with page numper in GET parameter always shown(page=)
+        //default url with page numper in GET parameter(page=)
         if(!$url){
             $url = (($Core->rewrite->URL != '/' ? $Core->rewrite->URL : '').((preg_replace("~(&|\?|)(page=)(\d+|)~", "", http_build_query($_GET))) ? '?'.(preg_replace("~(&|\?|)(page=)(\d+|)~", "", http_build_query($_GET))).'&page=' : '?page='));
-        }
-
-        if($resultsCount <= $Core->itemsPerPage){
-            return false;
-        }
-
-        if(!$currentPage){
-            $currentPage = $Core->rewrite->currentPage;
-        }elseif($currentPage <= 0){
-            $Core->doOrDie();
         }
 
         $pagesCount = ceil($resultsCount / $Core->itemsPerPage);
@@ -217,10 +222,10 @@ class GlobalFunctions{
 
         echo '<ul'.(isset($html['ul_class']) ? ' class="'.$html['ul_class'].'"' : '').'>';
         if($currentPage>1){
-            if($firstLast){
-                echo('<li'.(isset($html['first'], $html['first']['class']) ? ' class="'.$html['first']['class'].'"' : '').'><a title="Page 1" href="'.(!$firstPage && $url != '/' && substr($url, -1, 1) == '/' ? substr($url, 0, -1) : $url).($firstPage ? '1' : '').'">'.(isset($html['first'], $html['first']['html']) ? $html['first']['html'] : $pagesCount).'</a></li>');
+            if($showFirstLast){
+                echo('<li'.(isset($html['first'], $html['first']['class']) ? ' class="'.$html['first']['class'].'"' : '').'><a title="Page 1" href="'.(!$showFirstPage&& $url != '/' && substr($url, -1, 1) == '/' ? substr($url, 0, -1) : ($showFirstPage? $url.'1' : substr($url, 0, -6))).'">'.(isset($html['first'], $html['first']['html']) ? $html['first']['html'] : '1').'</a></li>');
             }
-            echo('<li'.(isset($html['prev'], $html['prev']['class']) ? ' class="'.$html['prev']['class'].'"' : '').'><a href="'.($current-1 == 1 && !$firstPage && $url != '/' && substr($url, -1, 1) == '/' ? substr($url, 0, -1) : $url).($current-1 == 1 ? ($firstPage ? $current-1 : '') : $current-1).'" title="Page '.($current-1).'">'.(isset($html['prev'], $html['prev']['html']) ? $html['prev']['html'] : $current-1).'</a></li>');
+            echo('<li'.(isset($html['prev'], $html['prev']['class']) ? ' class="'.$html['prev']['class'].'"' : '').'><a href="'.($current-1 == 1 && !$showFirstPage&& $url != '/' && substr($url, -1, 1) == '/' ? substr($url, 0, -1) : ($current-1 == 1 ? ($showFirstPage? $url.'1' : substr($url, 0, -6)) : $url.($current-1))).'" title="Page '.($current-1).'">'.(isset($html['prev'], $html['prev']['html']) ? $html['prev']['html'] : $current-1).'</a></li>');
         }
 
         if($Core->numberOfPagesInPagination%2 == 0)
@@ -235,7 +240,7 @@ class GlobalFunctions{
                 if($s<=$pagesCount){
                     echo (
                         '<li'.((isset($html['default'], $html['default']['class']) || $currentPage == $s) ? ' class="'.(isset($html['default'], $html['default']['class']) ? $html['default']['class'].' ' : '').($currentPage == $s ? (isset($html['current_page_class']) ? ' '.$html['current_page_class'] : '') : '').'"' : '').'>
-                            <a title="Page '.$s.'" href="'.($s == 1 && !$firstPage && $url != '/' && substr($url, -1, 1) == '/' ? substr($url, 0, -1) : $url).($s == 1 ? ($firstPage ? $s : '') : $s).'">'.(isset($html['default'], $html['default']['html']) ? $html['default']['html'].$s : $s).'</a>
+                            <a title="Page '.$s.'" href="'.($s == 1 && !$showFirstPage&& $url != '/' && substr($url, -1, 1) == '/' ? substr($url, 0, -1) : ($s == 1 ? ($showFirstPage? $url.'1' : substr($url, 0, -6)) : $url.$s)).'">'.(isset($html['default'], $html['default']['html']) ? $html['default']['html'].$s : $s).'</a>
                         </li>');
                 }
                 $more++;
@@ -249,7 +254,7 @@ class GlobalFunctions{
                 if($s<=$pagesCount){
                     echo(
                         '<li'.((isset($html['default'], $html['default']['class']) || $current == $s) ? ' class="'.(isset($html['default'], $html['default']['class']) ? $html['default']['class'].' ' : '').($current == $s ? (isset($html['current_page_class']) ? ' '.$html['current_page_class'] : '') : '').'"' : '').'>
-                        <a title="Page '.$s.'" href="'.($s == 1 && !$firstPage && $url != '/' && substr($url, -1, 1) == '/' ? substr($url, 0, -1) : $url).($s == 1 ? ($firstPage ? $s : '') : $s).'">'.(isset($html['default'], $html['default']['html']) ? $html['default']['html'].$s : $s).'</a>
+                        <a title="Page '.$s.'" href="'.($s == 1 && !$showFirstPage&& $url != '/' && substr($url, -1, 1) == '/' ? substr($url, 0, -1) : ($s == 1 ? ($showFirstPage? $url.'1' : substr($url, 0, -6)) : $url.$s)).'">'.(isset($html['default'], $html['default']['html']) ? $html['default']['html'].$s : $s).'</a>
                         </li>');
                 }
             }
@@ -258,7 +263,7 @@ class GlobalFunctions{
                 if($s<=$pagesCount){
                     echo(
                         '<li'.((isset($html['default'], $html['default']['class']) || $currentPage == $s) ? ' class="'.(isset($html['default'], $html['default']['class']) ? $html['default']['class'].' ' : '').($currentPage == $s ? (isset($html['current_page_class']) ? ' '.$html['current_page_class'] : '') : '').'"' : '').'>
-                        <a title="Page '.$s.'" href="'.($s == 1 && !$firstPage && $url != '/' && substr($url, -1, 1) == '/' ? substr($url, 0, -1) : $url).($s == 1 ? ($firstPage ? $s : '') : $s).'">'.(isset($html['default'], $html['default']['html']) ? $html['default']['html'].$s : $s).'</a>
+                        <a title="Page '.$s.'" href="'.($s == 1 && !$showFirstPage&& $url != '/' && substr($url, -1, 1) == '/' ? substr($url, 0, -1) : ($s == 1 ? ($showFirstPage? $url.'1' : substr($url, 0, -6)) : $url.$s)).'">'.(isset($html['default'], $html['default']['html']) ? $html['default']['html'].$s : $s).'</a>
                         </li>');
                 }
             }
@@ -266,7 +271,7 @@ class GlobalFunctions{
 
         if($current<$pagesCount){
             echo('<li'.(isset($html['next'], $html['next']['class']) ? ' class="'.$html['next']['class'].'"' : '').'><a href="'.$url.($current+1).'" title="Page '.($current+1).'">'.(isset($html['next'], $html['next']['html']) ? $html['next']['html']: $current+1).'</a></li>');
-            if($firstLast){
+            if($showFirstLast){
                 echo('<li'.(isset($html['last'], $html['last']['class']) ? ' class="'.$html['first']['class'].'"' : '').'><a title="Page '.$pagesCount.'" href="'.$url.$pagesCount.'">'.(isset($html['prev'], $html['last']['html']) ? $html['last']['html'] : $pagesCount).'</a></li>');
             }
         }
@@ -314,7 +319,7 @@ class GlobalFunctions{
     }
 
     //formats the given timestamp into ready for insert into mysql db date for field date/datetime; addHours parameter should be true for datetime fields
-    public function formatMysqlTime($time,$addHours = false){
+    public function formatMysqlTime($time, $addHours = false){
         $time = intval($time);
         if(empty($time)){
             return false;
@@ -349,8 +354,10 @@ class GlobalFunctions{
         return $this->mysqlTimeToTimestamp($time);
     }
 
-    //formats seconds int seconds, minutes, hours, days and months; remove comment from $s and $mo to calculate seconds and months
-    function formatSecondsToTime($time) {
+    //formats seconds int seconds, minutes, hours, days and months; 
+    //remove comment from $s and $mo to calculate seconds and months
+    //$addLetters adds "h" and 'm' after the hours/minutes of the time
+    function formatSecondsToTime($time, $addLetters = false) {
         $time = intval($time);
         if(empty($time)){
             return false;
@@ -372,6 +379,12 @@ class GlobalFunctions{
         if($m < 10){
             $m = "0$m";
         }
+        
+        if($addLetters){
+            $h = $h.'h';
+            $m = $m.'m';
+        }
+        
         $r .= "$h:$m";
         return $r;
     }
@@ -495,7 +508,7 @@ class GlobalFunctions{
         global $Core;
         if (!filter_var($url, FILTER_VALIDATE_URL))
             throw new Error("{$url} ".$Core->language->is_not_a_valid_link);
-
+        
         if (!substr($url, 0, 7) == "http://" || !substr($url, 0, 8) == "https://") {
             throw new Error("{$url} ".$Core->language->is_not_a_valid_link);
         }

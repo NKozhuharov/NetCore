@@ -8,7 +8,7 @@ class Menu{
         $fullPageName = false;
 
         if($pages && $pages = $this->buildTree($pages)){
-            $currentPage = $Core->globalFunctions->arraySearch($pages, 'is_current', 1);
+            $currentPage = $Core->globalFunctions->arraySearch($pages, 'url', $Core->rewrite->URL);
 
             if(isset($currentPage[0], $currentPage[0]['parentsIds'])){
                 $parents = $currentPage[0]['parentsIds'];
@@ -78,7 +78,7 @@ class Menu{
     public function formTree($row, $isResp = true){
         global $Core;
 
-        $parents = $Core->globalFunctions->arraySearch($row, 'is_current', 1);
+        $parents = $Core->globalFunctions->arraySearch($row, 'url', $Core->rewrite->URL);
         if(isset($parents[0], $parents[0]['parentsIds'])){
             $parents = $parents[0]['parentsIds'];
         }
@@ -86,37 +86,23 @@ class Menu{
         foreach($row as $t){
             if($t['children']){
             ?>
-                <li id="<?php echo $t['id']; ?>" class="hasMenu<?php echo (isset($t['is_current']) && $t['is_current'] ? ' is-current' : '' ).($isResp ? ' respPad' : '').(in_array($t['id'], $parents) ? ' active' : ''); ?>" title="<?php echo $t['name']; ?>">
-                    <?php
-                    if($t['url']){
-                    ?>
-                        <a href="<?php echo $t['url']; ?>"><?php echo $t['name']; ?></a>
-                    <?php
-                    }else{
-                    ?>
-                        <div class="menu-name"><?php echo $t['name']; ?></div>
-                    <?php
-                    }
-                    ?>
+                <li id="<?php echo $t['id']; ?>" class="hasMenu<?php echo ($t['url'] == $Core->rewrite->URL ? ' is-current' : '' ).($isResp ? ' respPad' : '').(in_array($t['id'], $parents) ? ' active' : ''); ?>" title="<?php echo $t['name']; ?>">
+                    <?php if($t['url']){ ?>
+                        <a href="<?php echo $t['url']; ?>"><?php echo $t['icon']; ?><?php echo $t['name']; ?></a>
+                    <?php }else{ ?>
+                        <div class="menu-name"><?php echo $t['icon']; ?><?php echo $t['name']; ?></div>
+                    <?php } ?>
                     <ul class="<?php echo (in_array($t['id'], $parents) ? 'opened' : '').($isResp ? ' resp' : ''); ?>">
                         <?php $this->formTree($t['children'], $isResp); ?>
                     </ul>
                 </li>
-            <?php
-            }else{
-            ?>
-                <li id="<?php echo $t['id']; ?>" class="noMenu <?php echo isset($t['is_current']) && $t['is_current'] ? ' is-current' : ''; ?>" title="<?php echo $t['name']; ?>">
-                    <?php
-                    if($t['url']){
-                    ?>
-                        <a href="<?php echo $t['url']; ?>"><?php echo $t['name']; ?></a>
-                    <?php
-                    }else{
-                    ?>
-                        <div class="menu-name"><?php echo $t['name']; ?></div>
-                    <?php
-                    }
-                    ?>
+            <?php }else{ ?>
+                <li id="<?php echo $t['id']; ?>" class="noMenu <?php echo $t['url'] == $Core->rewrite->URL ? ' is-current' : ''; ?>" title="<?php echo $t['name']; ?>">
+                    <?php if($t['url']){ ?>
+                        <a href="<?php echo $t['url']; ?>"><?php echo $t['icon']; ?><?php echo $t['name']; ?></a>
+                    <?php }else{ ?>
+                        <div class="menu-name"><?php echo $t['icon']; ?><?php echo $t['name']; ?></div>
+                    <?php } ?>
                 </li>
             <?php
             }
