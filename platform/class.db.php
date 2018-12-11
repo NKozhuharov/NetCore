@@ -133,6 +133,8 @@
 
             if(substr(preg_replace('{[^a-zA-Z0-9]}','',strtoupper($sql)),0,strlen("SELECT"))=="SELECT")
                 $select=1;
+            else if(substr(preg_replace('{[^a-zA-Z0-9]}','',strtoupper($sql)),0,strlen("CALL"))=="CALL")
+                $select=1;
 
             if($this->select == false && $select == 1)
                 $this->selectConnect();

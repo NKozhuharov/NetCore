@@ -183,6 +183,11 @@
             return $this->sphinxQuery($phrase);
         }
         
+        public function searchInMysql($phrase='', $limit = true, $additional = false)
+        {
+            return parent::search($phrase, $limit, $additional);
+        }
+        
         //WARNING: use this function for attributes ONLY!!
         //2nd WARNING: it converts floats into doubles for some reason
         //it will update Sphinx index first, then the MySQL table;

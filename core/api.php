@@ -19,9 +19,9 @@
         
         const QUERY_MC_REGISTER_KEY_PREFIX = 'API_MC_REGISTER_';
         
-        const LOGGED_IN_QUERY_LIMIT = 360;
+        const LOGGED_IN_QUERY_LIMIT = 3600;
         
-        const NOT_LOGGED_IN_QUERY_LIMIT = 120;
+        const NOT_LOGGED_IN_QUERY_LIMIT = 1200;
         
         protected $excludedQueryLimitIps = array();
 
@@ -102,7 +102,15 @@
             $Core->itemsPerPage = isset($_REQUEST['items_per_page']) && !empty($_REQUEST['items_per_page']) ? $_REQUEST['items_per_page'] : self::DEFAULT_ITEMS_PER_PAGE;
             
             $Core->itemsPerPage = isset($_REQUEST['limit']) && !empty($_REQUEST['limit']) ? $_REQUEST['limit'] : self::DEFAULT_ITEMS_PER_PAGE;
-
+            
+            if (!is_numeric($Core->Rewrite->currentPage)) {
+                throw new Error("Invalid page!"); 
+            }
+            
+            if (!is_numeric($Core->itemsPerPage)) {
+                throw new Error("Invalid limits!"); 
+            }
+            
             if ($Core->itemsPerPage > self::MAX_ITEMS_PER_PAGE) {
                 throw new Error("Maximum ".self::MAX_ITEMS_PER_PAGE." items per page!");
             }

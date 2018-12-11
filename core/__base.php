@@ -1,5 +1,8 @@
 <?php
     class Base{
+        const ORDER_TYPE_ASC  = 'ASC';
+        const ORDER_TYPE_DESC = 'DESC';
+        
         protected $tableName = false; //the name of the table of the parent class
         protected $parentField = false; //if the parent class has a table referencing it, this field is used for getByParentId()
         protected $autocompleteField = false; //if you use autocomplete table, this will be the field to put in it
@@ -266,7 +269,7 @@
                         }
                         else return $all;
                     }
-                    else throw new Exception("In order to use the search function, plesae define autocompleteField and autocompleteObjectId or searchByField!");
+                    else throw new Exception("In order to use the search function, please define autocompleteField and autocompleteObjectId or searchByField!");
                 }
                 unset($all);
                 return $result;
@@ -637,7 +640,7 @@
                 }
             }
             catch(Exception $ex){
-                $this->handleBuilderException($ex);
+                $this->handleBuilderException($ex, $q);
             }
 
             return $objectId;
@@ -651,6 +654,60 @@
         //alias of the add function with ignore parameter set to true
         public function insertIgnore($input=false, $noAutocomplete=false){
             return $this->add($input, $noAutocomplete, true);
+        }
+        
+        public function multiAdd(array $input, $ignore = false)
+        {
+            global $Core;
+            
+            if (empty($input) || !is_array($input)) {
+                throw new Exception ($Core->language->error_input_must_be_a_non_empty_array);
+            }
+
+            $q = "INSERT ".($ignore ? 'IGNORE' : '')." INTO `{$Core->dbName}`.`{$this->tableName}` (";
+            
+            foreach ($input as $row) {
+                $row = $this->prepareQueryArray($row);
+                
+                if (!strstr($q, 'VALUES')) {
+                    foreach ($row as $columnName => $value){
+                        $q .= "`$columnName`,";
+                    }
+                    
+                    $q = substr($q, 0, -1).') VALUES (';
+                }
+                
+                foreach ($row as $columnName => $value){
+                    if (empty($value) && !((is_numeric($value) && $value == '0'))) {
+                        $q .= 'NULL';
+                    } else if (is_numeric($value)){
+                        $q .= $value;
+                    } else {
+                        $q .= "'$value'";
+                    }
+                    $q .= ",";
+                }
+                
+                $q = substr($q, 0, -1).'), (';
+            }
+            
+            $q = substr($q, 0, -3);
+            
+            try {
+                $Core->db->query($q);
+            } catch(Exception $ex) {
+                $this->handleBuilderException($ex, $q);
+            }
+        }
+        
+        //alias of the multiAdd function
+        public function multiInsert($input,  $ignore = false){
+            return $this->multiAdd($input, $ignore);
+        }
+        
+        //alias of the multiAdd function with ignore parameter set to true
+        public function multiInsertIgnore($input){
+            return $this->multiAdd($input);
         }
         
         //deletes rows from the table and the rows in the autocomplete table
@@ -810,7 +867,7 @@
                 }
             }
             catch(Exception $ex){
-                $this->handleBuilderException($ex);
+                $this->handleBuilderException($ex, $q);
             }
             return true;
         }
@@ -865,19 +922,19 @@
                 }
             }
             catch(Exception $ex){
-                $this->handleBuilderException($ex);
+                $this->handleBuilderException($ex, $q);
             }
 
             return true;
         }
 
         //this functions updates the database row $objectId with the values from $input
-        public function update($objectId,$input){
+        public function update($objectId, $input){
             return $this->baseUpdate($objectId,$input);
         }
 
         //this functions updates the database parent field with the values from $input
-        public function updateByParentId($objectId,$input){
+        public function updateByParentId($objectId, $input){
             if(empty($this->parentField)){
                 throw new Exception($Core->language->error_you_must_set_a_parent_field_to_update_by_parent_id);
             }
@@ -966,7 +1023,7 @@
             return $input;
         }
 
-        private function handleBuilderException($ex){
+        private function handleBuilderException($ex, $query){
             global $Core;
             $m = $ex->getMessage();
             if(stristr($m,'duplicate')){
@@ -994,15 +1051,16 @@
             }
             else if(stristr($m,"Deadlock found when trying to get lock") && $Core->debugMysql){
                 $Core->db->query("SELECT * FROM `information_schema`.`PROCESSLIST` WHERE `INFO` IS NOT NULL",0,'simpleArray',$processes);
-                foreach($processes as $k => $proc){
-                    $processes[$k] = implode('|',$proc);
+                
+                echo "Queries running: ".PHP_EOL;
+                foreach ($processes as $k => $proc) {
+                    printf(implode('|',$proc).PHP_EOL);
                 }
 
-                $processes = implode(PHP_EOL,$processes);
-
-                echo "Queries running: ".PHP_EOL.$processes;
-
                 throw new Exception("Deadlock found in query \" {$query} \"!".PHP_EOL);
+            }
+            else if(stristr($m, "You have an error in your SQL syntax")) {
+                throw new Exception("Mysql error occured in query \" {$query} \"!".PHP_EOL);
             }
             else{
                 throw new Exception($m);

@@ -13,6 +13,10 @@ class Core{
     public $siteClassesDir       = false; //current site classes
     public $isBot                = false; //current script is bot
     public $isPublic             = false; //current server is front (public)
+    
+    public $underConstruction    = false; //the site is under construction
+    
+    public $classesRequriementTree = array();
 
     //domain
     public $siteDomain = 'https://example.com';
@@ -90,32 +94,65 @@ class Core{
         $this->siteDir        = GLOBAL_PATH.(isset($info['sitepath']) ? $info['sitepath'] : site).'/';
         $this->controllersDir = $this->siteDir.'controllers/';
         $this->viewsDir       = $this->siteDir.'views/';
+        
+        foreach ($classesRequriementTree as $class => $parent) {
+            $this->classesRequriementTree[strtolower($class)] = strtolower($parent);
+        }
         return true;
     }
 
-    public function __get($var){
+    public function __get($var)
+    {
         $var = strtolower($var);
         
-        if(!isset($this->$var)){
-            if(is_file($this->siteDir.'models/'.$var.'.php')){
-                require_once($this->siteDir.'models/'.$var.'.php');
-                $this->$var = new $var();
-                return $this->$var;
+        if (!isset($this->$var)) {
+            if (isset($this->classesRequriementTree[$var])) {
+                $parentName = $this->classesRequriementTree[$var];
+                if (!isset($this->$parentName)) {
+                    $this->requireClassAndInitItInCoreVariable($parentName); 
+                }
+                
+                $child = $this->requireClassAndInitItInCoreVariable($var);
+                if ($child !== false) {
+                    return $child;
+                }
+                
+                if (is_file($this->siteDir.'models/'.$parentName.'/'.$var.'.php')) {
+                    require_once($this->siteDir.'models/'.$parentName.'/'.$var.'.php');
+                    $this->$var = new $var();
+                    return $this->$var;
+                }
+                if (is_file(GLOBAL_PATH.'classes/'.$this->siteClassesDir.'/'.$parentName.'/'.$var.'.php')) {
+                    require_once(GLOBAL_PATH.'classes/'.$this->siteClassesDir.'/'.$parentName.'/'.$var.'.php');
+                    $this->$var = new $var();
+                    return $this->$var;
+                }
+                
+                return false;
             }
-            if(is_file(GLOBAL_PATH.'classes/core/'.$var.'.php')){
-                require_once(GLOBAL_PATH.'classes/core/'.$var.'.php');
-                $this->$var = new $var();
-                return $this->$var;
-            }
-            if(is_file(GLOBAL_PATH.'classes/'.$this->siteClassesDir.'/'.$var.'.php')){
-                require_once(GLOBAL_PATH.'classes/'.$this->siteClassesDir.'/'.$var.'.php');
-                $this->$var = new $var();
-                return $this->$var;
-            }
-            return false;
-        }
-        else{
+            return $this->requireClassAndInitItInCoreVariable($var);
+        } else {
             return $this->$var;
+        }
+        return false;
+    }
+    
+    private function requireClassAndInitItInCoreVariable($className) 
+    {
+        if (is_file($this->siteDir.'models/'.$className.'.php')) {
+            require_once($this->siteDir.'models/'.$className.'.php');
+            $this->$className = new $className();
+            return $this->$className;
+        }
+        if (is_file(GLOBAL_PATH.'classes/core/'.$className.'.php')) {
+            require_once(GLOBAL_PATH.'classes/core/'.$className.'.php');
+            $this->$className = new $className();
+            return $this->$className;
+        }
+        if (is_file(GLOBAL_PATH.'classes/'.$this->siteClassesDir.'/'.$className.'.php')) {
+            require_once(GLOBAL_PATH.'classes/'.$this->siteClassesDir.'/'.$className.'.php');
+            $this->$className = new $className();
+            return $this->$className;
         }
         return false;
     }

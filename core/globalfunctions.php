@@ -317,22 +317,31 @@ class GlobalFunctions{
             }
         }
     }
-
-    //formats the given timestamp into ready for insert into mysql db date for field date/datetime; addHours parameter should be true for datetime fields
-    public function formatMysqlTime($time, $addHours = false){
-        $time = intval($time);
+    /**
+     *  Formats the given timestamp into ready for insert into mysql db date for field date/datetime; 
+     *  @param int $time the timestamp to format
+     *  @param bool $addHours should be true for datetime fields
+     *  @return string
+    */
+    public function formatMysqlTime(int $time, $addHours = false){
         if(empty($time)){
-            return false;
+            return '';
         }
 
         if($addHours){
             return date('Y-m-d H:i:s',$time);
         }
+        
         return date('Y-m-d',$time);
     }
 
     //formats date from mysql date/datetime field into timestamp
-    public function mysqlTimeToTimestamp($time){
+    public function mysqlTimeToTimestamp(string $time)
+    {
+        //todo - to be fixed 
+        //$lastLoginDate = new DateTime('2018-10-14 04:27:23');
+        //var_dump($lastLoginDate->getTimestamp());
+        
         if(empty($time)){
             return false;
         }
@@ -340,11 +349,12 @@ class GlobalFunctions{
         $time = str_replace('T',' ',$time);
         $time = str_replace('Z','',$time);
 
-        if(stristr($time,':')){
+        if (stristr($time,':')) {
             $time = str_replace(array(':',' '),'-',$time);
             $time = explode('-',$time);
             return mktime($time[3],$time[4],$time[5],$time[1],$time[2],$time[0]);
         }
+        
         $time = explode('-',$time);
         return mktime(0,0,0,$time[1],$time[2],$time[0]);
     }
@@ -387,6 +397,34 @@ class GlobalFunctions{
         
         $r .= "$h:$m";
         return $r;
+    }
+    
+    /**
+     * Returns the difference (in seconds) between the provided timzeonse
+     * Uses DateTime and DateTimeZone, so timezones should be provided like 'Europe/London'
+     * @param string $originTimeZone the original time zone
+     * @param string $remoteTimeZone the remote time zone
+     * @return int
+    */
+    public function getTimezoneOffset(string $originTimeZone, string $remoteTimeZone) 
+    {
+        $originDTZ = new DateTimeZone($originTimeZone);
+        $remoteDTZ = new DateTimeZone($remoteTimeZone);
+        $originDT = new DateTime("now", $originDTZ);
+        $remoteDT = new DateTime("now", $remoteDTZ);
+        return $originDTZ->getOffset($originDT) - $remoteDTZ->getOffset($remoteDT);
+    }
+
+    public function zuluTimeToCurrentZoneTime(string $zuluTimeString)
+    {   
+        return $this->formatMysqlTime($this->zuluTimeToTimestamp($zuluTimeString), true);
+    }
+    
+    public function zuluTimeToTimestamp(string $zuluTimeString)
+    {
+        $dT = new DateTime($zuluTimeString);
+        
+        return $dT->getTimestamp();
     }
 
     //formats bytes into the powered values; $precision is used to set the number of decimal numbers

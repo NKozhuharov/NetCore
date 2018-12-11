@@ -170,6 +170,8 @@ class Language{
     }
     
     public function resetCache(){
+        global $Core;
+        
         $Core->db->query("SELECT `id`,`name` FROM `{$Core->dbName}`.`languages` ORDER BY `name` ASC", -1, 'void');
         
         $Core->db->query(
