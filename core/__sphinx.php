@@ -1,6 +1,9 @@
 <?php
     //when you use this class, always use parent::__construct() to initialize sphinx
     class Sphinx extends Base{
+        const ORDER_TYPE_CUSTOM = 'EXPRESSION';
+        const ORDER_TYPE_EXPRESSION = 'EXPRESSION';
+        
         private $instance = false;
         private $emptyResult = array(
             'info' => array(),
@@ -9,17 +12,21 @@
         
         protected $sphinxIndexName = '';
         protected $maxPageNumber = 10000;
+        
+        public $sortExpression = '';
+        
+        public $updateInMySQL = true;
 
         public function __get($var){
             global $Core;
-            if($var == 'instance' || $var == 'sphinx' || $var == 'sp'){
+            if ($var == 'instance' || $var == 'sphinx' || $var == 'sp') {
                 return $this->instance;
-            }
-            else if($var == 'maxResults'){
-                return $this->maxPageNumber * $Core->itemsPerPage;
-            }
-            else if($var == 'maxPage' || $var == 'maxPageNumber'){
+            } else if ($var == 'maxResults') {
+                return  $this->maxPageNumber * $Core->itemsPerPage;
+            } else if ($var == 'maxPage' || $var == 'maxPageNumber') {
                 return $this->maxPageNumber;
+            } else if ($var == 'sphinxIndexName') {
+                return $this->sphinxIndexName;
             }
         }
 
@@ -48,11 +55,12 @@
         }
 
         public function updateSpinxOrderType(){
-            if(stristr($this->orderType,'asc')){
-                $this->instance->setSortMode(SPH_SORT_ATTR_ASC,$this->orderByField);
-            }
-            else if(stristr($this->orderType,'desc')){
-                $this->instance->setSortMode(SPH_SORT_ATTR_DESC,$this->orderByField);
+            if (stristr($this->orderType, self::ORDER_TYPE_ASC)) {
+                $this->instance->setSortMode(SPH_SORT_ATTR_ASC, $this->orderByField);
+            } else if (stristr($this->orderType, self::ORDER_TYPE_DESC)) {
+                $this->instance->setSortMode(SPH_SORT_ATTR_DESC, $this->orderByField);
+            } else if (stristr($this->orderType, self::ORDER_TYPE_EXPRESSION)) {
+                $this->instance->setSortMode(SPH_SORT_EXPR, $this->sortExpression);
             }
         }
         
@@ -192,36 +200,66 @@
         //2nd WARNING: it converts floats into doubles for some reason
         //it will update Sphinx index first, then the MySQL table;
         //remember to set $this->tableName to use the function!
-        public function update($objectId,$input){
+        public function update($objectId, $input)
+        {
             global $Core;
 
-            if(!is_numeric($objectId)){
-                throw new Exception ($Core->language->error_object_id_must_be_numeric);
+            if (!is_numeric($objectId) && !is_array($objectId)) {
+                throw new Exception ($Core->language->error_object_id_must_be_numeric_or_array);
             }
-            if(empty($input) || !is_array($input)){
+                
+            if (empty($input) || !is_array($input)) {
                 throw new Exception ($Core->language->error_input_must_be_a_non_empty_array);
             }
-            if(isset($input['id'])){
+            if (isset($input['id'])) {
                 throw new Exception ($Core->language->error_field_id_is_not_allowed);
             }
-
-            $objectId = intval($objectId);
-            if(empty($objectId)){
+            
+            if (is_numeric($objectId)) {
+                $objectId = intval($objectId);
+            }
+            
+            if (empty($objectId)) {
                 throw new Exception($Core->language->error_object_id_cannot_be_empty);
             }
             
-            if(empty($this->tableName)){
+            if (empty($this->tableName)) {
                 throw new Exception($Core->language->error_set_a_table_name_first);
             }
             
-            $this->sphinx->setLimits(0,1,1);
-            $this->sphinx->setFilter('id', array($objectId));
-
-            $object = $this->sphinxQuery('',false);
-            
-            if(empty($object['total'])){
-                throw new Exception ($Core->language->update_failed.' (class'.get_class($this).') '.$Core->language->undefined.' '.substr($this->tableName,0,-1).'!');
+            if (is_array($objectId) && count($objectId) > 4000) {
+                throw new Exception($Core->language->error_sphinx_update_supports_max_4000_objects_in_a_single_query);
             }
+            
+            if (is_numeric($objectId)) {
+                $this->sphinx->setLimits(0, 1, 1);
+                $this->sphinx->setFilter('id', array($objectId));
+    
+                $object = $this->sphinxQuery('', false);
+                
+                if (empty($object['total'])){
+                    throw new Exception ($Core->language->update_failed.' (class'.get_class($this).') - '.$Core->language->undefined.' '.substr($this->tableName,0,-1).'!');
+                }
+            } else {
+                $this->sphinx->setLimits(0, count($objectId) + 1, count($objectId) + 1);
+                $this->sphinx->setFilter('id', $objectId);
+    
+                $object = $this->sphinxQuery('', false);
+                
+                #if($Core->debugSphinx) {
+                    foreach ($objectId as $key => $id) {
+                        if (!isset($object['matches'][$id])) {
+                            if ($Core->debugSphinx) {
+                                printf(get_class($this)." $id was not found! Will not update it!".PHP_EOL);
+                            }
+                            unset($objectId[$key]);
+                        }
+                    }
+                #}
+            }
+            
+            $this->setDefaultLimits();
+            $this->instance->ResetFilters();
             
             $keysPlain = array();
             $valsPlain = array();
@@ -229,42 +267,59 @@
             $keysString = array();
             $valsString = array();
             
-            foreach($input as $k => $v){
-                if(!isset($object['attrs'][$k])){
+            foreach ($input as $k => $v) {
+                if (!isset($object['attrs'][$k])) {
                     throw new Exception($Core->language->error_the_field.' "'.$k.'" '.$Core->language->error_does_not_exist);
                 }
-                if($object['attrs'][$k] == 1 || $object['attrs'][$k] == 5){
+                if ($object['attrs'][$k] == 1 || $object['attrs'][$k] == 5) {
                     $keysPlain[] = $k;
                     $valsPlain[] = $v;
-                }
-                else if($object['attrs'][$k] == 7){
+                } else if($object['attrs'][$k] == 7) {
                     $keysString[] = $k;
                     $valsString[] = $v;
                 }
             }
             
-            if(!empty($keysPlain)){
-                $res = $this->instance->UpdateAttributes($this->sphinxIndexName,$keysPlain,array($objectId => $valsPlain),SPH_UPDATE_PLAIN);
+            if (!empty($keysPlain)) {
+                if (is_numeric($objectId)) {
+                    $valsToUpdate = array($objectId => $valsPlain);
+                } else {
+                    $valsToUpdate = array();
+                    foreach($objectId as $id) {
+                        $valsToUpdate[$id] = $valsPlain;
+                    }
+                }
+                
+                $res = $this->instance->UpdateAttributes($this->sphinxIndexName, $keysPlain, $valsToUpdate, SPH_UPDATE_PLAIN);
             
                 if(empty($res)){
                     throw new Exception ($Core->language->update_failed.' (class'.get_class($this).') ');
                 }
             }
             
-            if(!empty($keysString)){
-                $res = $this->instance->UpdateAttributes($this->sphinxIndexName,$keysString,array($objectId => $valsString),SPH_UPDATE_STRING);
+            if (!empty($keysString)) {
+                if (is_numeric($objectId)) {
+                    $valsToUpdate = array($objectId => $valsString);
+                } else {
+                    $valsToUpdate = array();
+                    foreach($objectId as $id) {
+                        $valsToUpdate[$id] = $valsString;
+                    }
+                }
+                
+                $res = $this->instance->UpdateAttributes($this->sphinxIndexName, $keysString, $valsToUpdate, SPH_UPDATE_STRING);
             }
             
-            if(isset($res) && !empty($res)){
+            if (isset($res) && !empty($res) && $this->updateInMySQL) {
                 return parent::update($objectId,$input);
-            }
-            else{
+            } else if ($this->updateInMySQL) {
                 throw new Exception ($Core->language->update_failed.' (class'.get_class($this).') ');
             }
             return false;
         }
         
-        public function getEmptySphinxResult(){
+        public function getEmptySphinxResult()
+        {
             return $this->emptyResult;
         }
     }

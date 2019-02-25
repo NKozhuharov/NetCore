@@ -347,13 +347,14 @@
             if($additional){
                 $q .= " ".(stristr($q,'WHERE') ? "AND" : "WHERE").' '.$additional;
             }
-
-            if(empty($id)){
+            
+            //WARNING REMOVED ORDER BLOCK FOR GET BY ID
+            #if(empty($id)){
                 $q .= " ORDER BY $order $ascDesc";
                 if($this->additionalOrdering){
                     $q .= ', '.$this->additionalOrdering;
                 }
-            }
+            #}
 
             if($limit){
                 if(is_numeric($limit)){

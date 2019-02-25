@@ -10,6 +10,17 @@ class ExceptionHandler{
             print_r($e->getMessage());
         }
     }
+    
+    public function SuccessReload($e){
+        global $Core;
+
+        header('HTTP/1.1 200 OK', true, 200);
+        if($Core->ajax){
+            echo $this->catchMessage($e->getMessage(), true, true);
+        }else{
+            print_r($e->getMessage());
+        }
+    }
 
     public function Error($e){
         global $Core;
@@ -33,7 +44,7 @@ class ExceptionHandler{
         }
     }
 
-    public function catchMessage($message, $isSuccess = false){
+    public function catchMessage($message, $isSuccess = false, $reload = false){
         echo '<script>alert("'.$message.'")</script>';
     }
 }

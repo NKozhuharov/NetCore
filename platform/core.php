@@ -173,11 +173,11 @@ class Core{
         return true;
     }
 
-    public function redirect($url = '/'){
+    public function redirect($url = '/',$httpCode=302){
         if($this->ajax){
             throw new Success('<script>window.location.replace("'.$url.'")</script>');
         }else{
-            header("Location: ".$url, 1, 302);
+            header("Location: ".$url, 1, $httpCode);
             exit();
         }
         return true;

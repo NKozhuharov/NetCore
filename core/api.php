@@ -19,9 +19,9 @@
         
         const QUERY_MC_REGISTER_KEY_PREFIX = 'API_MC_REGISTER_';
         
-        const LOGGED_IN_QUERY_LIMIT = 3600;
+        const LOGGED_IN_QUERY_LIMIT = 7200;
         
-        const NOT_LOGGED_IN_QUERY_LIMIT = 1200;
+        const NOT_LOGGED_IN_QUERY_LIMIT = 7200;
         
         protected $excludedQueryLimitIps = array();
 

@@ -15,8 +15,8 @@
                     See: https://docs.aws.amazon.com/ses/latest/DeveloperGuide/smtp-credentials.html
 
             */
-            ,'username' => 'AKIAIMTUEVHFGBZTPK3Q'
-            ,'password' => 'AkrNBjLJ80kw7URSbiKM3zYVKER1aQVcTh/4DYG1AuQy'
+            ,'username' => '34qerfd134f892y3Az'
+            ,'password' => 'AqECgfcHC07MvxmTwot4gUo9a3B/pYFhqNrMQQD+9bJY'
         ];
 
         public function __construct(){
