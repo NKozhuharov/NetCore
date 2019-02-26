@@ -70,6 +70,8 @@ class Core{
     public $debugIps = array(); //for db errors
     public $debug = false; //for general debug purposes
     public $debugMysql = false; //for MySQL queries debug 
+    
+    private $coreDirectories = array();
 
     //END OF PLATFORM VARIABLES
 
@@ -80,10 +82,14 @@ class Core{
             || (isset($_REQUEST['ajax']))
             || (isset($AJAX) && $AJAX == true)
         ) ? true : false;
-
-        foreach(scandir(GLOBAL_PATH.'classes/core/') as $m){
-            if(stristr($m,'.php')){
-                require_once(GLOBAL_PATH.'classes/core/'.$m);
+        
+        foreach (glob(GLOBAL_PATH.'classes/core/*.php') as $coreClass) {
+            require_once($coreClass);
+        }
+        
+        foreach (glob(GLOBAL_PATH.'classes/core/*', GLOB_ONLYDIR) as $coreDirectory) {
+            if (!stristr($coreDirectory, 'Images') && !strstr($coreDirectory, 'PHPMailer-master')) {
+                $this->coreDirectories[] = $coreDirectory;
             }
         }
 
@@ -144,11 +150,21 @@ class Core{
             $this->$className = new $className();
             return $this->$className;
         }
+        
         if (is_file(GLOBAL_PATH.'classes/core/'.$className.'.php')) {
             require_once(GLOBAL_PATH.'classes/core/'.$className.'.php');
             $this->$className = new $className();
             return $this->$className;
         }
+        
+        foreach ($this->coreDirectories as $coreDirectory) {
+            if (is_file($coreDirectory.'/'.$className.'.php')){
+                require_once($coreDirectory.'/'.$className.'.php');
+                $this->$className = new $className();
+                return $this->$className;
+            }
+        }
+        
         if (is_file(GLOBAL_PATH.'classes/'.$this->siteClassesDir.'/'.$className.'.php')) {
             require_once(GLOBAL_PATH.'classes/'.$this->siteClassesDir.'/'.$className.'.php');
             $this->$className = new $className();
