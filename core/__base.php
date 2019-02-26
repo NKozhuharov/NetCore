@@ -902,8 +902,8 @@
             $input = $this->prepareQueryArray($input);
             $q = '';
 
-            foreach ($input as $k => $v){
-                $q .= "`$k` = ".((empty($v) && $v !== 0 && $v !== '0') ? 'NULL' : (is_numeric($v) ? $v : "'$v'")).",";
+            foreach ($input as $k => $v) {
+                $q .= "`$k` = ".((empty($v) && $v !== 0 && $v !== '0') ? 'NULL' : "'$v'").",";
             }
             $q = "UPDATE `{$Core->dbName}`.`{$this->tableName}` SET ".substr($q,0,-1)." WHERE `$updateBy` = $objectId";
 
