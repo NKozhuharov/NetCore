@@ -4,6 +4,10 @@
         const MIN_KEY_LENGTH = 3;
         const MAX_KEY_LENGTH = 40;
         
+        /**
+         * All types of keys
+         * @var array
+         */
         private $typeMap = array(
             1 => 'private',
             2 => 'period',
@@ -11,6 +15,10 @@
             4 => 'automated',
         );
         
+        /**
+         * A color for every key type (for the admin panel)
+         * @var array
+         */
         private $typeColorMap = array(
             1 => 'blue',
             2 => 'orange',
@@ -18,6 +26,10 @@
             4 => 'gray'
         );
         
+        /**
+         * All discount types
+         * @var array
+         */
         private $discountTypeMap = array(
             1 => 'percentage',
             2 => 'amount',
@@ -379,23 +391,34 @@
         }
         
         /**
-         * Records a usage for the key by it's name
+         * Records a usage for the key by it's id
          * Throws Error if parameters are invalid or the key cannot be used
          * @param string $key - the name of the key
-         * @param int $platformId - the id of the platfrom, from where the key is used
          * @param string $userIp - the IP of the user, which is using the key
          * @param string $username - the name of the user; only considered when a 'private' key is used
          * @throws Error
          */
-        public function useKey(string $key, int $platformId, string $userIp, string $username = null)
+        public function useKey(int $keyId, string $userIp, string $username = null)
         {
             global $Core;
             
-            if (filter_var($userIp, FILTER_VALIDATE_IP)) {
+            if (empty($keyId)) {
+                throw new Error("Provide key id!");
+            }
+            
+            if (!filter_var($userIp, FILTER_VALIDATE_IP)) {
                 throw new Error("Provide a valid user ip!");
             }
             
-            $existingKey = $this->getKey($key, $platformId);
+            $existingKey = $this->getById($keyId);
+            
+            if (empty($existingKey)) {
+                throw new Error("This key does not exist!");
+            }
+            
+            if ($existingKey['expired']) {
+                throw new Error ("This key is expired!");
+            }
             
             if ($existingKey['type'] == 1) {
                 if (empty($username)) {
@@ -408,7 +431,7 @@
                 
                 $Core->PromoKeysUsage->add(
                     array(
-                        'key_id'  => $key['id'],
+                        'key_id'  => $existingKey['id'],
                         'user_ip' => $userIp
                     )
                 );
@@ -417,35 +440,45 @@
             } else if ($existingKey['type'] == 2) {
                 $Core->PromoKeysUsage->add(
                     array(
-                        'key_id'  => $key['id'],
+                        'key_id'  => $existingKey['id'],
                         'user_ip' => $userIp
                     )
                 );
-            } else {
+            } else if ($existingKey['type'] == 3) {
                 $Core->PromoKeysUsage->add(
                     array(
-                        'key_id'  => $key['id'],
+                        'key_id'  => $existingKey['id'],
                         'user_ip' => $userIp
                     )
                 );
                 
-                $keyUsageCount = $Core->PromoKeysUsage->getCount(false, "`key_id` = {$key['id']}");
+                $keyUsageCount = $Core->PromoKeysUsage->getCount(false, "`key_id` = {$existingKey['id']}");
                 
-                if ($keyUsageCount == $key['expire_limit']) {
-                    $this->deActivateKey($key['id']);
+                if ($keyUsageCount == $existingKey['expire_limit']) {
+                    $this->deActivateKey($existingKey['id']);
                 }
-            } 
+            } else if ($existingKey['type'] == 4) {
+                $Core->PromoKeysUsage->add(
+                    array(
+                        'key_id'  => $existingKey['id'],
+                        'user_ip' => $userIp
+                    )
+                );
+                
+                $this->deActivateKey($existingKey['id']);
+            }
         }
         
         /**
          * Records a usage for the key by it's name
          * Throws Error if parameters are invalid or the key cannot be used
+         * Returns an array, containing the id of the applied key (key_id) and the discounted sum for the order (discounted_sum)
          * @param string $key - the name of the key
          * @param int $platformId - the id of the platfrom, from where the key is used
          * @param float $totalSum - the sum before the discount
          * @param string $username - the name of the user; only considered when a 'private' key is used
          * @throws Error
-         * @return float
+         * @return array
          */
         public function applyKey(string $key, int $platformId, float $totalSum, string $username = null)
         {
@@ -471,7 +504,11 @@
             if ($discountedSum < 0) {
                 $discountedSum = 0;
             }
-            return $discountedSum;
+            
+            return array(
+                'discounted_sum' => number_format($discountedSum, 2),
+                'key_id'         => $existingKey['id']
+            );
         }
         
         /**
@@ -546,29 +583,4 @@
                 throw new Error("Percentage discount must be less or exactly 100%!");
             }
         }
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
     }
